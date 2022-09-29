@@ -297,6 +297,7 @@ public class SphU {
     }
 
     /**
+     * 记录统计数据并为给定资源执行规则检查。
      * Record statistics and perform rule checking for the given resource.
      *
      * @param name         the unique name for the protected resource

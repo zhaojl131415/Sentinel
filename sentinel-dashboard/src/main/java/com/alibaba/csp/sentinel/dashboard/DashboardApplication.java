@@ -33,7 +33,14 @@ public class DashboardApplication {
         SpringApplication.run(DashboardApplication.class, args);
     }
 
+    /**
+     * 触发Sentinel初始化
+     */
     private static void triggerSentinelInit() {
+        /**
+         * 开启线程执行初始化
+         * @see InitExecutor#doInit()23
+         */
         new Thread(() -> InitExecutor.doInit()).start();
     }
 }

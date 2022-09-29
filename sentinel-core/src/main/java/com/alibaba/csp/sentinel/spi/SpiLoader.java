@@ -166,8 +166,11 @@ public final class SpiLoader<S> {
      * @return Sorted Provider instances list
      */
     public List<S> loadInstanceListSorted() {
+        /**
+         * SPI读取文件:{@link META-INF/services/com.alibaba.csp.sentinel.slotchain.ProcessorSlot}, 存入集合, 后排序
+         */
         load();
-
+        // 将排好序的class集合实例化
         return createInstanceList(sortedClassList);
     }
 
@@ -346,6 +349,7 @@ public final class SpiLoader<S> {
                 in = url.openStream();
                 br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
                 String line;
+                // 逐行读取SPI文件, 加载class
                 while ((line = br.readLine()) != null) {
                     if (StringUtil.isBlank(line)) {
                         // Skip blank line
@@ -366,6 +370,7 @@ public final class SpiLoader<S> {
 
                     Class<S> clazz = null;
                     try {
+                        // 加载class
                         clazz = (Class<S>) Class.forName(line, false, classLoader);
                     } catch (ClassNotFoundException e) {
                         fail("class " + line + " not found", e);
@@ -374,7 +379,7 @@ public final class SpiLoader<S> {
                     if (!service.isAssignableFrom(clazz)) {
                         fail("class " + clazz.getName() + "is not subtype of " + service.getName() + ",SPI configuration file=" + fullFileName);
                     }
-
+                    // 存入集合
                     classList.add(clazz);
                     Spi spi = clazz.getAnnotation(Spi.class);
                     String aliasName = spi == null || "".equals(spi.value()) ? clazz.getName() : spi.value();
@@ -407,6 +412,7 @@ public final class SpiLoader<S> {
         }
 
         sortedClassList.addAll(classList);
+        // 根据@SPI中指定的order排序
         Collections.sort(sortedClassList, new Comparator<Class<? extends S>>() {
             @Override
             public int compare(Class<? extends S> o1, Class<? extends S> o2) {

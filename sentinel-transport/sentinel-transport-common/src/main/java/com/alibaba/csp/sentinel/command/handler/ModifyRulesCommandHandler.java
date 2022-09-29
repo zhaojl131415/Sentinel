@@ -42,6 +42,8 @@ import static com.alibaba.csp.sentinel.transport.util.WritableDataSourceRegistry
 /**
  * @author jialiang.linjl
  * @author Eric Zhao
+ *
+ * 修改规则命令处理器
  */
 @CommandMapping(name = "setRules", desc = "modify the rules, accept param: type={ruleType}&data={ruleJson}")
 public class ModifyRulesCommandHandler implements CommandHandler<String> {
@@ -56,8 +58,9 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
             return CommandResponse.ofFailure(new RuntimeException("The \"fastjson-" + JSON.VERSION
                     + "\" introduced in application is too old, you need fastjson-1.2.12 at least."));
         }
+        // 获取参数中的规则类型
         String type = request.getParam("type");
-        // rule data in get parameter
+        // rule data in get parameter 获取参数中的规则数据
         String data = request.getParam("data");
         if (StringUtil.isNotEmpty(data)) {
             try {
@@ -72,14 +75,19 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
 
         String result = "success";
 
+        // 流控规则
         if (FLOW_RULE_TYPE.equalsIgnoreCase(type)) {
+            // 拿到sentinel的规则数据进行解析
             List<FlowRule> flowRules = JSONArray.parseArray(data, FlowRule.class);
+            // 将流控规则加载到微服务内存中, 微服务就可以拿到对应的流控规则
             FlowRuleManager.loadRules(flowRules);
+            // 持久化写入数据源
             if (!writeToDataSource(getFlowDataSource(), flowRules)) {
                 result = WRITE_DS_FAILURE_MSG;
             }
             return CommandResponse.ofSuccess(result);
         } else if (AUTHORITY_RULE_TYPE.equalsIgnoreCase(type)) {
+            // 授权规则
             List<AuthorityRule> rules = JSONArray.parseArray(data, AuthorityRule.class);
             AuthorityRuleManager.loadRules(rules);
             if (!writeToDataSource(getAuthorityDataSource(), rules)) {
@@ -125,8 +133,12 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
     }
 
     private static final String WRITE_DS_FAILURE_MSG = "partial success (write data source failed)";
+    /** 流控规则 */
     private static final String FLOW_RULE_TYPE = "flow";
+    /** 降级规则类型 */
     private static final String DEGRADE_RULE_TYPE = "degrade";
+    /** 系统规则类型 */
     private static final String SYSTEM_RULE_TYPE = "system";
+    /** 授权规则类型 */
     private static final String AUTHORITY_RULE_TYPE = "authority";
 }

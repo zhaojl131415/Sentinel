@@ -18,6 +18,7 @@ package com.alibaba.csp.sentinel.transport.command.http;
 import com.alibaba.csp.sentinel.command.CommandHandler;
 import com.alibaba.csp.sentinel.command.CommandRequest;
 import com.alibaba.csp.sentinel.command.CommandResponse;
+import com.alibaba.csp.sentinel.command.handler.ModifyRulesCommandHandler;
 import com.alibaba.csp.sentinel.config.SentinelConfig;
 import com.alibaba.csp.sentinel.transport.log.CommandCenterLog;
 import com.alibaba.csp.sentinel.transport.command.SimpleHttpCommandCenter;
@@ -100,6 +101,10 @@ public class HttpEventTask implements Runnable {
             // Find the matching command handler.
             CommandHandler<?> commandHandler = SimpleHttpCommandCenter.getHandler(commandName);
             if (commandHandler != null) {
+                /**
+                 * 获取响应
+                 * @see ModifyRulesCommandHandler#handle(CommandRequest)
+                 */
                 CommandResponse<?> response = commandHandler.handle(request);
                 handleResponse(response, printWriter);
             } else {

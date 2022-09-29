@@ -45,6 +45,7 @@ public class CtSph implements Sph {
     private static final Object[] OBJECTS0 = new Object[0];
 
     /**
+     * 相同的资源将共享相同的ProcessorSlotChain
      * Same resource({@link ResourceWrapper#equals(Object)}) will share the same
      * {@link ProcessorSlotChain}, no matter in which {@link Context}.
      */
@@ -132,7 +133,9 @@ public class CtSph implements Sph {
         if (!Constants.ON) {
             return new CtEntry(resourceWrapper, null, context);
         }
-
+        /**
+         * 流程链
+         */
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
@@ -177,6 +180,7 @@ public class CtSph implements Sph {
     }
 
     /**
+     * 获取资源的ProcessorSlotChain。新的ProcessorSlotChain将 如果资源不相关，则创建。
      * Get {@link ProcessorSlotChain} of the resource. new {@link ProcessorSlotChain} will
      * be created if the resource doesn't relate one.
      *
@@ -193,6 +197,9 @@ public class CtSph implements Sph {
      */
     ProcessorSlot<Object> lookProcessChain(ResourceWrapper resourceWrapper) {
         ProcessorSlotChain chain = chainMap.get(resourceWrapper);
+        /**
+         * 双重检验锁DCL
+         */
         if (chain == null) {
             synchronized (LOCK) {
                 chain = chainMap.get(resourceWrapper);
@@ -201,7 +208,7 @@ public class CtSph implements Sph {
                     if (chainMap.size() >= Constants.MAX_SLOT_CHAIN_SIZE) {
                         return null;
                     }
-
+                    // 创建一个新的插槽链
                     chain = SlotChainProvider.newSlotChain();
                     Map<ResourceWrapper, ProcessorSlotChain> newMap = new HashMap<ResourceWrapper, ProcessorSlotChain>(
                         chainMap.size() + 1);

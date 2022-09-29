@@ -35,7 +35,7 @@ final class AuthorityRuleChecker {
             return true;
         }
 
-        // Do exact match with origin name.
+        // Do exact match with origin name. 与原始名称完全匹配。
         int pos = rule.getLimitApp().indexOf(requester);
         boolean contain = pos > -1;
 
@@ -51,12 +51,12 @@ final class AuthorityRuleChecker {
 
             contain = exactlyMatch;
         }
-
+        // 判断是否存在黑名单中
         int strategy = rule.getStrategy();
         if (strategy == RuleConstant.AUTHORITY_BLACK && contain) {
             return false;
         }
-
+        // 判断是否存在黑名单中
         if (strategy == RuleConstant.AUTHORITY_WHITE && !contain) {
             return false;
         }

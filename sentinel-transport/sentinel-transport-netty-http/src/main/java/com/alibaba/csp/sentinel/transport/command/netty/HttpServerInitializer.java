@@ -30,11 +30,11 @@ public class HttpServerInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     protected void initChannel(SocketChannel socketChannel) throws Exception {
         ChannelPipeline p = socketChannel.pipeline();
-
+        // 编解码
         p.addLast(new HttpRequestDecoder());
         p.addLast(new HttpObjectAggregator(1024 * 1024));
         p.addLast(new HttpResponseEncoder());
-
+        // 处理器
         p.addLast(new HttpServerHandler());
     }
 }

@@ -31,6 +31,7 @@ import com.alibaba.csp.sentinel.property.PropertyListener;
 import com.alibaba.csp.sentinel.property.SentinelProperty;
 
 /**
+ * 授权规则管理器。
  * Manager for authority rules.
  *
  * @author youji.zj

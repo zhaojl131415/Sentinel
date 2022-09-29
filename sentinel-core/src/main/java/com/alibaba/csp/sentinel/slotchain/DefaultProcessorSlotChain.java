@@ -23,6 +23,9 @@ import com.alibaba.csp.sentinel.context.Context;
  */
 public class DefaultProcessorSlotChain extends ProcessorSlotChain {
 
+    /**
+     * 责任链
+     */
     AbstractLinkedProcessorSlot<?> first = new AbstractLinkedProcessorSlot<Object>() {
 
         @Override
@@ -48,6 +51,10 @@ public class DefaultProcessorSlotChain extends ProcessorSlotChain {
         }
     }
 
+    /**
+     * 往链条尾部插入ProcessorSlot
+     * @param protocolProcessor processor to be added.
+     */
     @Override
     public void addLast(AbstractLinkedProcessorSlot<?> protocolProcessor) {
         end.setNext(protocolProcessor);

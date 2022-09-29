@@ -99,7 +99,7 @@ public abstract class AbstractSentinelInterceptor implements HandlerInterceptor 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
         throws Exception {
         try {
-            // 获取资源名
+            // 获取资源名: 实际上获取的就是controller中接口的@RequestMapping中的value
             String resourceName = getResourceName(request);
 
             if (StringUtil.isEmpty(resourceName)) {

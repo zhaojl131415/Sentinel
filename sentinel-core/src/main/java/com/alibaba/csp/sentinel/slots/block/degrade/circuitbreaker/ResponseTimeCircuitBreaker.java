@@ -28,6 +28,7 @@ import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.TimeUtil;
 
 /**
+ * 响应时间断路器
  * @author Eric Zhao
  * @since 1.8.0
  */
@@ -35,8 +36,17 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
     private static final double SLOW_REQUEST_RATIO_MAX_VALUE = 1.0d;
 
+    /**
+     * Sentinel 控制台, 熔断配置 最大 RT
+     */
     private final long maxAllowedRt;
+    /**
+     * Sentinel 控制台, 熔断配置 比例阈值
+     */
     private final double maxSlowRequestRatio;
+    /**
+     * Sentinel 控制台, 熔断配置 最小请求数
+     */
     private final int minRequestAmount;
 
     private final LeapArray<SlowRequestCounter> slidingCounter;
@@ -73,25 +83,34 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
             completeTime = TimeUtil.currentTimeMillis();
         }
         long rt = completeTime - entry.getCreateTimestamp();
+        // 慢调用比例
         if (rt > maxAllowedRt) {
             counter.slowCount.add(1);
         }
         counter.totalCount.add(1);
-
+        // 超过阈值时处理状态变更
         handleStateChangeWhenThresholdExceeded(rt);
     }
 
+    /**
+     * 超过阈值时处理状态变更
+     * @param rt
+     */
     private void handleStateChangeWhenThresholdExceeded(long rt) {
+        // 开启
         if (currentState.get() == State.OPEN) {
             return;
         }
-        
+        // 半开
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             // TODO: improve logic for half-open recovery
+            // 如果时间大于最大的RT, 则将断路器状态变更为全开, 否则关闭断路器, 请求正常访问.
             if (rt > maxAllowedRt) {
+                // 半开 -> 全开
                 fromHalfOpenToOpen(1.0d);
             } else {
+                // 半开 -> 关闭
                 fromHalfOpenToClose();
             }
             return;
@@ -99,16 +118,21 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
         List<SlowRequestCounter> counters = slidingCounter.values();
         long slowCount = 0;
+        // 用于存储时间窗口内的请求数量
         long totalCount = 0;
         for (SlowRequestCounter counter : counters) {
             slowCount += counter.slowCount.sum();
             totalCount += counter.totalCount.sum();
         }
+        // 如果请求数量 小于 最小请求数量
         if (totalCount < minRequestAmount) {
             return;
         }
+        // 计算慢调用比例
         double currentRatio = slowCount * 1.0d / totalCount;
+        // 如果慢调用的比例高于设置的最大慢调用比例, 则将断路器的状态改为 全开状态
         if (currentRatio > maxSlowRequestRatio) {
+            // 全开状态
             transformToOpen(currentRatio);
         }
         if (Double.compare(currentRatio, maxSlowRequestRatio) == 0 &&

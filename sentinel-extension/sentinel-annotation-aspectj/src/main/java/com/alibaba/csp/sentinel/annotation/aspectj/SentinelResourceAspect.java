@@ -15,10 +15,12 @@
  */
 package com.alibaba.csp.sentinel.annotation.aspectj;
 
+import com.alibaba.csp.sentinel.CtSph;
 import com.alibaba.csp.sentinel.Entry;
 import com.alibaba.csp.sentinel.EntryType;
 import com.alibaba.csp.sentinel.SphU;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -51,18 +53,23 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             // Should not go through here.
             throw new IllegalStateException("Wrong state for SentinelResource annotation");
         }
-        // 获取资源名
+        // 根据注解获取资源名
         String resourceName = getResourceName(annotation.value(), originMethod);
         EntryType entryType = annotation.entryType();
         int resourceType = annotation.resourceType();
         Entry entry = null;
         try {
-            // 进入资源保护逻辑
+            /**
+             * 进入资源保护逻辑
+             *
+             * 底层实现
+             * @see CtSph#entryWithPriority(ResourceWrapper, int, boolean, Object...)
+             */
             entry = SphU.entry(resourceName, resourceType, entryType, pjp.getArgs());
             // 回调业务逻辑方法
             return pjp.proceed();
         } catch (BlockException ex) {
-            // 处理阻塞异常
+            // 处理阻塞异常: 执行注解上blockHandler指定的方法
             return handleBlockException(pjp, annotation, ex);
         } catch (Throwable ex) {
             Class<? extends Throwable>[] exceptionsToIgnore = annotation.exceptionsToIgnore();
@@ -72,7 +79,7 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             }
             if (exceptionBelongsTo(ex, annotation.exceptionsToTrace())) {
                 traceException(ex);
-                // 处理异常降级回调
+                // 处理异常降级回调: 执行注解上fallback指定的方法
                 return handleFallback(pjp, annotation, ex);
             }
 

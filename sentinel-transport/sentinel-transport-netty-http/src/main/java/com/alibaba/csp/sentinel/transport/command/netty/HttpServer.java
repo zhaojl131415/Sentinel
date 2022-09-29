@@ -46,12 +46,14 @@ public final class HttpServer {
     final static Map<String, CommandHandler> handlerMap = new ConcurrentHashMap<String, CommandHandler>();
 
     public void start() throws Exception {
+        // 启动netty服务
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
+                    // 添加处理器
                 .childHandler(new HttpServerInitializer());
             int port;
             try {

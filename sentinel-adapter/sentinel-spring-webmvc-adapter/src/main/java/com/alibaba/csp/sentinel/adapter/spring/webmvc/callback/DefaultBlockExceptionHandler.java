@@ -23,6 +23,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 
 /**
+ * 被阻止请求的默认处理程序。
  * Default handler for the blocked request.
  *
  * @author kaizi2009

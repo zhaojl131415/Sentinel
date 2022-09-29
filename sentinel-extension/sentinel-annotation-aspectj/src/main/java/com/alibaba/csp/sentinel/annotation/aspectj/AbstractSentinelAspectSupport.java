@@ -122,17 +122,27 @@ public abstract class AbstractSentinelAspectSupport {
         throw ex;
     }
 
+    /**
+     * 处理阻塞异常
+     * @param pjp
+     * @param annotation
+     * @param ex
+     * @return
+     * @throws Throwable
+     */
     protected Object handleBlockException(ProceedingJoinPoint pjp, SentinelResource annotation, BlockException ex)
         throws Throwable {
-
+        // 提取阻塞处理方法
         // Execute block handler if configured.
         Method blockHandlerMethod = extractBlockHandlerMethod(pjp, annotation.blockHandler(),
             annotation.blockHandlerClass());
+        // 如果阻塞处理方法不为空
         if (blockHandlerMethod != null) {
             Object[] originArgs = pjp.getArgs();
             // Construct args.
             Object[] args = Arrays.copyOf(originArgs, originArgs.length + 1);
             args[args.length - 1] = ex;
+            // 反射执行阻塞处理方法.
             return invoke(pjp, blockHandlerMethod, args);
         }
 

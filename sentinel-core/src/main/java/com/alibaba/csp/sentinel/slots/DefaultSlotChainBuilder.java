@@ -38,7 +38,23 @@ public class DefaultSlotChainBuilder implements SlotChainBuilder {
     @Override
     public ProcessorSlotChain build() {
         ProcessorSlotChain chain = new DefaultProcessorSlotChain();
-
+        /**
+         * SPI加载处理链ProcessorSlot
+         * SPI读取文件:{@link META-INF/services/com.alibaba.csp.sentinel.slotchain.ProcessorSlot}
+         * 遍历文件中指定的ProcessorSlot并实例化, 加入到链中: 参考责任链
+         * 链执行顺序
+         *
+         * first
+         * @see com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot
+         * @see com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot
+         * @see com.alibaba.csp.sentinel.slots.logger.LogSlot
+         * @see com.alibaba.csp.sentinel.slots.statistic.StatisticSlot
+         * @see com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot
+         * @see com.alibaba.csp.sentinel.slots.system.SystemSlot
+         * @see com.alibaba.csp.sentinel.slots.block.flow.FlowSlot
+         * @see com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot
+         * end
+         */
         List<ProcessorSlot> sortedSlotList = SpiLoader.of(ProcessorSlot.class).loadInstanceListSorted();
         for (ProcessorSlot slot : sortedSlotList) {
             if (!(slot instanceof AbstractLinkedProcessorSlot)) {
@@ -48,7 +64,7 @@ public class DefaultSlotChainBuilder implements SlotChainBuilder {
 
             chain.addLast((AbstractLinkedProcessorSlot<?>) slot);
         }
-
+        // 返回链
         return chain;
     }
 }

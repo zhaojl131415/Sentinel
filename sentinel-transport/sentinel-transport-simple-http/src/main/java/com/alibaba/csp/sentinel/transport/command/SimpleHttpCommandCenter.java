@@ -103,6 +103,9 @@ public class SimpleHttpCommandCenter implements CommandCenter {
                 if (serverSocket != null) {
                     CommandCenterLog.info("[CommandCenter] Begin listening at port " + serverSocket.getLocalPort());
                     socketReference = serverSocket;
+                    /**
+                     * @see ServerThread#run()
+                     */
                     executor.submit(new ServerThread(serverSocket));
                     success = true;
                     port = serverSocket.getLocalPort();
@@ -119,7 +122,9 @@ public class SimpleHttpCommandCenter implements CommandCenter {
             }
 
         };
-
+        /**
+         * 开启新线程
+         */
         new Thread(serverInitTask).start();
     }
 
@@ -188,9 +193,15 @@ public class SimpleHttpCommandCenter implements CommandCenter {
             while (true) {
                 Socket socket = null;
                 try {
+                    /**
+                     * BIO处理
+                     */
                     socket = this.serverSocket.accept();
                     setSocketSoTimeout(socket);
                     HttpEventTask eventTask = new HttpEventTask(socket);
+                    /**
+                     * @see HttpEventTask#run()
+                     */
                     bizExecutor.submit(eventTask);
                 } catch (Exception e) {
                     CommandCenterLog.info("Server error", e);

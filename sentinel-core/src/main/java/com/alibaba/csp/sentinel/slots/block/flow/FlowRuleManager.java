@@ -34,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * 流控规则管理器: 关键.
  * <p>
  * One resources can have multiple rules. And these rules take effects in the following order:
  * <ol>
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit;
  * @author jialiang.linjl
  * @author Eric Zhao
  * @author Weihua
+ *
  */
 public class FlowRuleManager {
 
@@ -100,7 +102,7 @@ public class FlowRuleManager {
     }
 
     /**
-     * Get a copy of the rules.
+     * Get a copy of the rules. 获取规则的副本。
      *
      * @return a new copy of the rules.
      */
@@ -113,7 +115,7 @@ public class FlowRuleManager {
     }
 
     /**
-     * Load {@link FlowRule}s, former rules will be replaced.
+     * Load {@link FlowRule}s, former rules will be replaced. 更新流控规则
      *
      * @param rules new rules to load.
      */

@@ -31,18 +31,28 @@ import com.alibaba.fastjson.JSON;
 @CommandMapping(name = "getRules", desc = "get all active rules by type, request param: type={ruleType}")
 public class FetchActiveRuleCommandHandler implements CommandHandler<String> {
 
+    /**
+     * 获取规则
+     * @param request the request to handle
+     * @return
+     */
     @Override
     public CommandResponse<String> handle(CommandRequest request) {
         String type = request.getParam("type");
         if ("flow".equalsIgnoreCase(type)) {
+            // 流控规则
             return CommandResponse.ofSuccess(JSON.toJSONString(FlowRuleManager.getRules()));
         } else if ("degrade".equalsIgnoreCase(type)) {
+            // 熔断降级规则
             return CommandResponse.ofSuccess(JSON.toJSONString(DegradeRuleManager.getRules()));
         } else if ("authority".equalsIgnoreCase(type)) {
+            // 授权规则
             return CommandResponse.ofSuccess(JSON.toJSONString(AuthorityRuleManager.getRules()));
         } else if ("system".equalsIgnoreCase(type)) {
+            // 系统规则
             return CommandResponse.ofSuccess(JSON.toJSONString(SystemRuleManager.getRules()));
         } else {
+            // 其他:失败
             return CommandResponse.ofFailure(new IllegalArgumentException("invalid type"));
         }
     }

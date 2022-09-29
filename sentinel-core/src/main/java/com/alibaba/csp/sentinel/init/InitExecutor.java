@@ -43,13 +43,19 @@ public final class InitExecutor {
             return;
         }
         try {
+            // 获取InitFunc接口的实例列表
             List<InitFunc> initFuncs = SpiLoader.of(InitFunc.class).loadInstanceListSorted();
             List<OrderWrapper> initList = new ArrayList<OrderWrapper>();
             for (InitFunc initFunc : initFuncs) {
                 RecordLog.info("[InitExecutor] Found init func: {}", initFunc.getClass().getCanonicalName());
+                // 排序
                 insertSorted(initList, initFunc);
             }
             for (OrderWrapper w : initList) {
+                /**
+                 * 按照顺序遍历执行初始化
+                 * @see com.alibaba.csp.sentinel.transport.init.CommandCenterInitFunc#init()
+                 */
                 w.func.init();
                 RecordLog.info("[InitExecutor] Executing {} with order {}",
                     w.func.getClass().getCanonicalName(), w.order);

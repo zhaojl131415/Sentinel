@@ -16,7 +16,9 @@
 package com.alibaba.csp.sentinel.property;
 
 import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -33,6 +35,10 @@ public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
         this.value = value;
     }
 
+    /**
+     * 添加监听器
+     * @param listener listener to add.
+     */
     @Override
     public void addListener(PropertyListener<T> listener) {
         listeners.add(listener);
@@ -52,7 +58,13 @@ public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
         RecordLog.info("[DynamicSentinelProperty] Config will be updated to: {}", newValue);
 
         value = newValue;
+        // 遍历监听器, 执行配置更新
         for (PropertyListener<T> listener : listeners) {
+            /**
+             *
+             * 熔断降级配置更新
+             * @see DegradeRuleManager.RulePropertyListener#configUpdate(List)
+             */
             listener.configUpdate(newValue);
         }
         return true;

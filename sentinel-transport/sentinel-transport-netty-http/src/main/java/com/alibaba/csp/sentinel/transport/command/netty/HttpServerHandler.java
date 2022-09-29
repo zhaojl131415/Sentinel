@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import com.alibaba.csp.sentinel.command.CommandHandler;
 import com.alibaba.csp.sentinel.command.CommandRequest;
 import com.alibaba.csp.sentinel.command.CommandResponse;
+import com.alibaba.csp.sentinel.command.handler.FetchActiveRuleCommandHandler;
 import com.alibaba.csp.sentinel.config.SentinelConfig;
 import com.alibaba.csp.sentinel.transport.log.CommandCenterLog;
 import com.alibaba.csp.sentinel.transport.command.codec.CodecRegistry;
@@ -70,15 +71,23 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<Object> {
         ctx.flush();
     }
 
+    /**
+     * netty 入栈处理器 执行
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         FullHttpRequest httpRequest = (FullHttpRequest)msg;
         try {
+            // 解析请求
             CommandRequest request = parseRequest(httpRequest);
             if (StringUtil.isBlank(HttpCommandUtils.getTarget(request))) {
                 writeErrorResponse(BAD_REQUEST.code(), "Invalid command", ctx);
                 return;
             }
+            // 处理请求
             handleRequest(request, ctx, HttpUtil.isKeepAlive(httpRequest));
 
         } catch (Exception ex) {
@@ -93,6 +102,10 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<Object> {
         // Find the matching command handler.
         CommandHandler<?> commandHandler = getHandler(commandName);
         if (commandHandler != null) {
+            /**
+             * 获取sentinel规则
+             * @see FetchActiveRuleCommandHandler#handle(CommandRequest)
+             */
             CommandResponse<?> response = commandHandler.handle(request);
             writeResponse(response, ctx, keepAlive);
         } else {

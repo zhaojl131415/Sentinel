@@ -34,6 +34,7 @@ import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
 /**
+ * 熔断降级的规则管理器
  * The rule manager for circuit breaking rules ({@link DegradeRule}).
  *
  * @author youji.zj
@@ -42,6 +43,9 @@ import com.alibaba.csp.sentinel.util.StringUtil;
  */
 public final class DegradeRuleManager {
 
+    /**
+     * 用于缓存熔断器集合<资源名, List<熔断器>>
+     */
     private static volatile Map<String, List<CircuitBreaker>> circuitBreakers = new HashMap<>();
     private static volatile Map<String, Set<DegradeRule>> ruleMap = new HashMap<>();
 
@@ -69,6 +73,11 @@ public final class DegradeRuleManager {
         }
     }
 
+    /**
+     * 根据资源名从缓存中获取对应的断路器集合
+     * @param resourceName
+     * @return
+     */
     static List<CircuitBreaker> getCircuitBreakers(String resourceName) {
         return circuitBreakers.get(resourceName);
     }
@@ -81,6 +90,7 @@ public final class DegradeRuleManager {
     }
 
     /**
+     * 获取现有的熔断规则。
      * <p>Get existing circuit breaking rules.</p>
      * <p>Note: DO NOT modify the rules from the returned list directly.
      * The behavior is <strong>undefined</strong>.</p>
@@ -101,12 +111,17 @@ public final class DegradeRuleManager {
     }
 
     /**
+     * 更新熔断降级规则 ，之前的规则将被替换。
      * Load {@link DegradeRule}s, former rules will be replaced.
      *
      * @param rules new rules to load.
      */
     public static void loadRules(List<DegradeRule> rules) {
         try {
+            /**
+             * 修改熔断降级规则
+             * @see DynamicSentinelProperty#updateValue(Object)
+             */
             currentProperty.updateValue(rules);
         } catch (Throwable e) {
             RecordLog.error("[DegradeRuleManager] Unexpected error when loading degrade rules", e);
@@ -148,21 +163,31 @@ public final class DegradeRuleManager {
         }
     }
 
+    /**
+     * 获取已经存在的相同的断路器, 如果不存在, 则新建一个新的断路器
+     * @param rule
+     * @return
+     */
     private static CircuitBreaker getExistingSameCbOrNew(/*@Valid*/ DegradeRule rule) {
+        // 去缓存中获取当前资源下的断路器集合
         List<CircuitBreaker> cbs = getCircuitBreakers(rule.getResource());
         if (cbs == null || cbs.isEmpty()) {
+            // 资源下的断路器集合为空, 则新建一个新的断路器
             return newCircuitBreakerFrom(rule);
         }
+        // 遍历断路器集合获取已经存在的相同断路器
         for (CircuitBreaker cb : cbs) {
             if (rule.equals(cb.getRule())) {
                 // Reuse the circuit breaker if the rule remains unchanged.
                 return cb;
             }
         }
+        // 未找到, 则新建一个新的断路器
         return newCircuitBreakerFrom(rule);
     }
 
     /**
+     * 根据提供的断路器规则创建断路器实例。
      * Create a circuit breaker instance from provided circuit breaking rule.
      *
      * @param rule a valid circuit breaking rule
@@ -203,7 +228,12 @@ public final class DegradeRuleManager {
 
     private static class RulePropertyListener implements PropertyListener<List<DegradeRule>> {
 
+        /**
+         * 重新加载熔断降级配置
+         * @param list
+         */
         private synchronized void reloadFrom(List<DegradeRule> list) {
+            // 构建断路器Map
             Map<String, List<CircuitBreaker>> cbs = buildCircuitBreakers(list);
             Map<String, Set<DegradeRule>> rm = new HashMap<>(cbs.size());
 
@@ -216,13 +246,18 @@ public final class DegradeRuleManager {
                 }
                 rm.put(e.getKey(), rules);
             }
-
+            // 静态全局缓存
             DegradeRuleManager.circuitBreakers = cbs;
             DegradeRuleManager.ruleMap = rm;
         }
 
+        /**
+         * 熔断降级配置更新
+         * @param conf updated value.
+         */
         @Override
         public void configUpdate(List<DegradeRule> conf) {
+            // 重新加载熔断降级配置
             reloadFrom(conf);
             RecordLog.info("[DegradeRuleManager] Degrade rules has been updated to: {}", ruleMap);
         }
@@ -233,11 +268,18 @@ public final class DegradeRuleManager {
             RecordLog.info("[DegradeRuleManager] Degrade rules loaded: {}", ruleMap);
         }
 
+        /**
+         * 构建熔断器集合
+         * @param list
+         * @return
+         */
         private Map<String, List<CircuitBreaker>> buildCircuitBreakers(List<DegradeRule> list) {
+            // 初始化熔断器集合Map
             Map<String, List<CircuitBreaker>> cbMap = new HashMap<>(8);
             if (list == null || list.isEmpty()) {
                 return cbMap;
             }
+            // 遍历熔断降级规则
             for (DegradeRule rule : list) {
                 if (!isValidRule(rule)) {
                     RecordLog.warn("[DegradeRuleManager] Ignoring invalid rule when loading new rules: {}", rule);
@@ -247,19 +289,21 @@ public final class DegradeRuleManager {
                 if (StringUtil.isBlank(rule.getLimitApp())) {
                     rule.setLimitApp(RuleConstant.LIMIT_APP_DEFAULT);
                 }
+                // 根据规则获取断路器
                 CircuitBreaker cb = getExistingSameCbOrNew(rule);
                 if (cb == null) {
                     RecordLog.warn("[DegradeRuleManager] Unknown circuit breaking strategy, ignoring: {}", rule);
                     continue;
                 }
-
+                // 获取资源名
                 String resourceName = rule.getResource();
-
+                // 获取断路器集合
                 List<CircuitBreaker> cbList = cbMap.get(resourceName);
                 if (cbList == null) {
                     cbList = new ArrayList<>();
                     cbMap.put(resourceName, cbList);
                 }
+                // 将新的断路器加入到断路器集合
                 cbList.add(cb);
             }
             return cbMap;

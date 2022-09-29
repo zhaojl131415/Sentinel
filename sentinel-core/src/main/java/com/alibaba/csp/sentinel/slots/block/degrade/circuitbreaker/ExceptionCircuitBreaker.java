@@ -29,13 +29,23 @@ import static com.alibaba.csp.sentinel.slots.block.RuleConstant.DEGRADE_GRADE_EX
 import static com.alibaba.csp.sentinel.slots.block.RuleConstant.DEGRADE_GRADE_EXCEPTION_RATIO;
 
 /**
+ * 异常断路器
  * @author Eric Zhao
  * @since 1.8.0
  */
 public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
 
+    /**
+     * Sentinel 熔断 异常策略: 异常比例. 异常数
+     */
     private final int strategy;
+    /**
+     * Sentinel 熔断 最小请求数
+     */
     private final int minRequestAmount;
+    /**
+     * Sentinel 熔断 阈值: 异常比例阈值. 异常数阈值
+     */
     private final double threshold;
 
     private final LeapArray<SimpleErrorCounter> stat;
@@ -68,12 +78,13 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
             return;
         }
         Throwable error = entry.getError();
+        // 累计异常数
         SimpleErrorCounter counter = stat.currentWindow().value();
         if (error != null) {
             counter.getErrorCount().add(1);
         }
         counter.getTotalCount().add(1);
-
+        // 超过阈值时处理状态变更
         handleStateChangeWhenThresholdExceeded(error);
     }
 
@@ -103,11 +114,14 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
             return;
         }
         double curCount = errCount;
+        // 如果策略为异常比例, 则通过异常数和总数计算异常比例
         if (strategy == DEGRADE_GRADE_EXCEPTION_RATIO) {
             // Use errorRatio
             curCount = errCount * 1.0d / totalCount;
         }
+        // 如果异常比例/异常数高于异常阈值
         if (curCount > threshold) {
+            // 则将断路器状态改为全开状态
             transformToOpen(curCount);
         }
     }
