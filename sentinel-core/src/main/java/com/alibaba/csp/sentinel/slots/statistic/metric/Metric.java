@@ -22,6 +22,7 @@ import com.alibaba.csp.sentinel.slots.statistic.data.MetricBucket;
 import com.alibaba.csp.sentinel.util.function.Predicate;
 
 /**
+ * 表示记录受保护资源的调用度量的基本结构。
  * Represents a basic structure recording invocation metrics of protected resources.
  *
  * @author jialiang.linjl

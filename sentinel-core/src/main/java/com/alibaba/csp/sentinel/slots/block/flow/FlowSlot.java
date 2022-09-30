@@ -21,6 +21,7 @@ import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot;
 import com.alibaba.csp.sentinel.spi.Spi;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.function.Function;
@@ -161,8 +162,13 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
+        // 检查流控规则核心代码
         checkFlow(resourceWrapper, context, node, count, prioritized);
-        // 找下一个
+        /**
+         * 执行链中下一个ProcessorSlot的entry方法
+         *
+         * @see DegradeSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+         */
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
@@ -173,6 +179,11 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+        /**
+         * 执行链中下一个ProcessorSlot的exit方法
+         *
+         * @see DegradeSlot#exit(Context, ResourceWrapper, int, Object...) 
+         */
         fireExit(context, resourceWrapper, count, args);
     }
 
@@ -180,6 +191,7 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         @Override
         public Collection<FlowRule> apply(String resource) {
             // Flow rule map should not be null.
+            // 获取全局的流控规则缓存Map
             Map<String, List<FlowRule>> flowRules = FlowRuleManager.getFlowRuleMap();
             return flowRules.get(resource);
         }

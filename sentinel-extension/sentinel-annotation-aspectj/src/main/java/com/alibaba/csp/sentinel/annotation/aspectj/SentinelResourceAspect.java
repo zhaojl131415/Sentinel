@@ -15,13 +15,20 @@
  */
 package com.alibaba.csp.sentinel.annotation.aspectj;
 
-import com.alibaba.csp.sentinel.CtSph;
-import com.alibaba.csp.sentinel.Entry;
-import com.alibaba.csp.sentinel.EntryType;
-import com.alibaba.csp.sentinel.SphU;
+import com.alibaba.csp.sentinel.*;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.context.Context;
+import com.alibaba.csp.sentinel.slotchain.DefaultProcessorSlotChain;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowSlot;
+import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
+import com.alibaba.csp.sentinel.slots.logger.LogSlot;
+import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
+import com.alibaba.csp.sentinel.slots.statistic.StatisticSlot;
+import com.alibaba.csp.sentinel.slots.system.SystemSlot;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -87,8 +94,22 @@ public class SentinelResourceAspect extends AbstractSentinelAspectSupport {
             throw ex;
         } finally {
             if (entry != null) {
+                /**
+                 * 执行exit
+                 * @see CtEntry#exit(int, Object...)
+                 *
+                 * @see DefaultProcessorSlotChain#exit(Context, ResourceWrapper, int, Object...)
+                 * @see NodeSelectorSlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see ClusterBuilderSlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see LogSlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see StatisticSlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see AuthoritySlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see SystemSlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see FlowSlot#exit(Context, ResourceWrapper, int, Object...)
+                 * @see DegradeSlot#exit(Context, ResourceWrapper, int, Object...)
+                 */
                 entry.exit(1, pjp.getArgs());
             }
         }
     }
-}
+    }

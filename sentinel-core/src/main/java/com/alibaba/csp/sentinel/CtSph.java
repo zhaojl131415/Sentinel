@@ -23,14 +23,18 @@ import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.context.NullContext;
-import com.alibaba.csp.sentinel.slotchain.MethodResourceWrapper;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
-import com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain;
-import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
-import com.alibaba.csp.sentinel.slotchain.SlotChainProvider;
-import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
+import com.alibaba.csp.sentinel.node.DefaultNode;
+import com.alibaba.csp.sentinel.slotchain.*;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.Rule;
+import com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowSlot;
+import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
+import com.alibaba.csp.sentinel.slots.logger.LogSlot;
+import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
+import com.alibaba.csp.sentinel.slots.statistic.StatisticSlot;
+import com.alibaba.csp.sentinel.slots.system.SystemSlot;
 
 /**
  * {@inheritDoc}
@@ -134,7 +138,18 @@ public class CtSph implements Sph {
             return new CtEntry(resourceWrapper, null, context);
         }
         /**
-         * 流程链
+         * 获取/构建流程链
+         *
+         * first
+         * @see com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot
+         * @see com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot
+         * @see com.alibaba.csp.sentinel.slots.logger.LogSlot
+         * @see com.alibaba.csp.sentinel.slots.statistic.StatisticSlot
+         * @see com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot
+         * @see com.alibaba.csp.sentinel.slots.system.SystemSlot
+         * @see com.alibaba.csp.sentinel.slots.block.flow.FlowSlot
+         * @see com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot
+         * end
          */
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
@@ -148,6 +163,20 @@ public class CtSph implements Sph {
 
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
+            /**
+             * 进入链, 执行ProcessorSlot的entry方法
+             *
+             * 执行顺序:
+             * @see DefaultProcessorSlotChain#entry(Context, ResourceWrapper, Object, int, boolean, Object...)
+             * @see NodeSelectorSlot#entry(Context, ResourceWrapper, Object, int, boolean, Object...)
+             * @see ClusterBuilderSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             * @see LogSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             * @see StatisticSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             * @see AuthoritySlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             * @see SystemSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             * @see FlowSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             * @see DegradeSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             */
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
         } catch (BlockException e1) {
             e.exit(count, args);

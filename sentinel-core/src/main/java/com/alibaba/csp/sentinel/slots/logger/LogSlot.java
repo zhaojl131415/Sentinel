@@ -22,6 +22,7 @@ import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.statistic.StatisticSlot;
 import com.alibaba.csp.sentinel.spi.Spi;
 
 /**
@@ -35,6 +36,11 @@ public class LogSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode obj, int count, boolean prioritized, Object... args)
         throws Throwable {
         try {
+            /**
+             * 执行链中下一个ProcessorSlot的entry方法
+             *
+             * @see StatisticSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             */
             fireEntry(context, resourceWrapper, obj, count, prioritized, args);
         } catch (BlockException e) {
             EagleEyeLogUtil.log(resourceWrapper.getName(), e.getClass().getSimpleName(), e.getRuleLimitApp(),
@@ -49,6 +55,11 @@ public class LogSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
         try {
+            /**
+             * 执行链中下一个ProcessorSlot的exit方法
+             *
+             * @see StatisticSlot#exit(Context, ResourceWrapper, int, Object...)
+             */
             fireExit(context, resourceWrapper, count, args);
         } catch (Throwable e) {
             RecordLog.warn("Unexpected entry exit exception", e);

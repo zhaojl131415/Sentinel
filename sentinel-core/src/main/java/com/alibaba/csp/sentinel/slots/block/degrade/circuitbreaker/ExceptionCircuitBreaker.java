@@ -143,6 +143,10 @@ public class ExceptionCircuitBreaker extends AbstractCircuitBreaker {
             return totalCount;
         }
 
+        /**
+         * 重置数据: 错误调用数量/总调用数量
+         * @return
+         */
         public SimpleErrorCounter reset() {
             errorCount.reset();
             totalCount.reset();

@@ -23,6 +23,7 @@ import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.node.EntranceNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
+import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
 import com.alibaba.csp.sentinel.spi.Spi;
 
 import java.util.HashMap;
@@ -153,12 +154,15 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
          * The answer is all {@link DefaultNode}s with same resource name share one
          * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
          */
+        // 从缓存中获取默认节点
         DefaultNode node = map.get(context.getName());
         if (node == null) {
             synchronized (this) {
                 node = map.get(context.getName());
                 if (node == null) {
+                    // 双重检验锁(DCL), 缓存中不存在, 初始化一个新的默认节点
                     node = new DefaultNode(resourceWrapper, null);
+                    // 存入缓存map
                     HashMap<String, DefaultNode> cacheMap = new HashMap<String, DefaultNode>(map.size());
                     cacheMap.putAll(map);
                     cacheMap.put(context.getName(), node);
@@ -169,13 +173,23 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
 
             }
         }
-
+        // 设置当前节点
         context.setCurNode(node);
+        /**
+         * 执行链中下一个ProcessorSlot的entry方法
+         *
+         * @see ClusterBuilderSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+         */
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+        /**
+         * 执行链中下一个ProcessorSlot的exit方法
+         *
+         * @see ClusterBuilderSlot#exit(Context, ResourceWrapper, int, Object...)
+         */
         fireExit(context, resourceWrapper, count, args);
     }
 }

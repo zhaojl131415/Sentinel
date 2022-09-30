@@ -132,7 +132,7 @@ public abstract class AbstractSentinelAspectSupport {
      */
     protected Object handleBlockException(ProceedingJoinPoint pjp, SentinelResource annotation, BlockException ex)
         throws Throwable {
-        // 提取阻塞处理方法
+        // 提取阻塞处理方法: 注解的blockHandler指定的方法
         // Execute block handler if configured.
         Method blockHandlerMethod = extractBlockHandlerMethod(pjp, annotation.blockHandler(),
             annotation.blockHandlerClass());
@@ -147,17 +147,29 @@ public abstract class AbstractSentinelAspectSupport {
         }
 
         // If no block handler is present, then go to fallback.
+        // 如果阻塞的处理方法不存在, 则执行异常降级回调: 执行注解上fallback指定的方法
         return handleFallback(pjp, annotation, ex);
     }
 
+    /**
+     * 反射执行方法
+     * @param pjp
+     * @param method
+     * @param args
+     * @return
+     * @throws Throwable
+     */
     private Object invoke(ProceedingJoinPoint pjp, Method method, Object[] args) throws Throwable {
         try {
+            // 如果方法是不可访问的, 私有的, 设置为可访问的
             if (!method.isAccessible()) {
                 makeAccessible(method);
             }
+            // 静态方法执行
             if (isStatic(method)) {
                 return method.invoke(null, args);
             }
+            // 非静态方法执行
             return method.invoke(pjp.getTarget(), args);
         } catch (InvocationTargetException e) {
             // throw the actual exception

@@ -30,6 +30,9 @@ import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.slots.block.flow.controller.DefaultController;
+import com.alibaba.csp.sentinel.slots.block.flow.controller.RateLimiterController;
+import com.alibaba.csp.sentinel.slots.block.flow.controller.WarmUpController;
 import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
 import com.alibaba.csp.sentinel.util.StringUtil;
 import com.alibaba.csp.sentinel.util.function.Function;
@@ -46,10 +49,19 @@ public class FlowRuleChecker {
         if (ruleProvider == null || resource == null) {
             return;
         }
+        /**
+         * 通过执行函数式接口的apply方法, 根据资源名获取流控规则集合
+         * @see FlowSlot#ruleProvider
+         */
         Collection<FlowRule> rules = ruleProvider.apply(resource.getName());
         if (rules != null) {
+            // 遍历当前资源对应的流控规则集合
             for (FlowRule rule : rules) {
+                /**
+                 * 判断是否能校验通过
+                 */
                 if (!canPassCheck(rule, context, node, count, prioritized)) {
+                    // 不通过, 抛出异常
                     throw new FlowException(rule.getLimitApp(), rule);
                 }
             }
@@ -61,27 +73,50 @@ public class FlowRuleChecker {
         return canPassCheck(rule, context, node, acquireCount, false);
     }
 
+    /**
+     * 校验请求是否可通过流控规则
+     * @param rule
+     * @param context
+     * @param node
+     * @param acquireCount
+     * @param prioritized
+     * @return
+     */
     public boolean canPassCheck(/*@NonNull*/ FlowRule rule, Context context, DefaultNode node, int acquireCount,
                                                     boolean prioritized) {
         String limitApp = rule.getLimitApp();
         if (limitApp == null) {
             return true;
         }
-
+        // 判断是否集群模式, 不稳定有bug, 可以先不考虑
         if (rule.isClusterMode()) {
             return passClusterCheck(rule, context, node, acquireCount, prioritized);
         }
-
+        /**
+         * 主要:
+         * 本地校验是否通过
+         */
         return passLocalCheck(rule, context, node, acquireCount, prioritized);
     }
 
-    private static boolean passLocalCheck(FlowRule rule, Context context, DefaultNode node, int acquireCount,
+    private static boolean passLocalCheck(FlowRule rule, Context context, DefaultNode node, int  acquireCount,
                                           boolean prioritized) {
         Node selectedNode = selectNodeByRequesterAndStrategy(rule, context, node);
         if (selectedNode == null) {
             return true;
         }
 
+        /**
+         *
+         * 默认
+         * @see DefaultController#canPass(Node, int, boolean)
+         *
+         * 预热
+         * @see WarmUpController#canPass(Node, int, boolean)
+         *
+         * 排队等待
+         * @see RateLimiterController#canPass(Node, int, boolean)
+         */
         return rule.getRater().canPass(selectedNode, acquireCount, prioritized);
     }
 

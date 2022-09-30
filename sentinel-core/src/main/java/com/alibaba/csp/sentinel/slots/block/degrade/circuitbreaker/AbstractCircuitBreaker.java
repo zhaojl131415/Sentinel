@@ -71,10 +71,13 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         if (currentState.get() == State.CLOSED) {
             return true;
         }
-        // 如果当前熔断器的状态为开启状态, 表示熔断开启, 请求不可以通过
+        // 如果当前熔断器的状态为开启状态, 表示熔断开启, 请求不可以通过, 尝试半开状态访问
         if (currentState.get() == State.OPEN) {
             // For half-open state we allow a request for probing. 对于半开状态，我们允许探测请求。
-            // 重试超时到达
+            /**
+             * 重试超时到达: 表示当前时间 大于 上次熔断时间 + 配置的熔断时长,
+             * 如果超过了熔断时长, 则断路器从打开状态切换至半开状态, 尝试放行一次请求.
+             */
             return retryTimeoutArrived() && fromOpenToHalfOpen(context);
         }
         return false;
@@ -90,18 +93,28 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
      * @return
      */
     protected boolean retryTimeoutArrived() {
-        // 当前时间戳大于等于下次重试时间戳,
+        // 当前时间戳大于等于下次重试时间戳, 表示请求已经超过熔断时长
         return TimeUtil.currentTimeMillis() >= nextRetryTimestamp;
     }
 
+    /**
+     * 当断路器切换至全开状态时, 会调用此方法, 更新下次请求重试的时间戳
+     */
     protected void updateNextRetryTimestamp() {
-        // 下次重试时间戳 = 请求时间 + 配置的熔断时长
+        // 下次重试时间戳 = 请求失败断路器切换至全开状态时的时间 + 配置的熔断时长
         this.nextRetryTimestamp = TimeUtil.currentTimeMillis() + recoveryTimeoutMs;
     }
 
+    /**
+     * 断路器从关闭状态到开启状态
+     * @param snapshotValue
+     * @return
+     */
     protected boolean fromCloseToOpen(double snapshotValue) {
         State prev = State.CLOSED;
+        // CAS修改当前断路器状态: 从关闭状态到开启状态
         if (currentState.compareAndSet(prev, State.OPEN)) {
+            // 更新下次请求重试的时间戳
             updateNextRetryTimestamp();
 
             notifyObservers(prev, State.OPEN, snapshotValue);
@@ -111,13 +124,14 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     }
 
     /**
-     * 从开启状态到半开状态
+     * 断路器从开启状态到半开状态
      * @param context
      * @return
      */
     protected boolean fromOpenToHalfOpen(Context context) {
         // CAS修改当前断路器状态: 从开启状态到半开状态
         if (currentState.compareAndSet(State.OPEN, State.HALF_OPEN)) {
+            // 观察者: 空方法
             notifyObservers(State.OPEN, State.HALF_OPEN, null);
             Entry entry = context.getCurEntry();
             entry.whenTerminate(new BiConsumer<Context, Entry>() {
@@ -147,7 +161,7 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     protected boolean fromHalfOpenToOpen(double snapshotValue) {
         // CAS变更断路器状态: 半开 -> 全开
         if (currentState.compareAndSet(State.HALF_OPEN, State.OPEN)) {
-            // 更新下次重试时间
+            // 更新下次请求重试的时间戳
             updateNextRetryTimestamp();
             notifyObservers(State.HALF_OPEN, State.OPEN, snapshotValue);
             return true;
@@ -156,7 +170,17 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
     }
 
     protected boolean fromHalfOpenToClose() {
+        // CAS变更断路器状态: 半开 -> 关闭
         if (currentState.compareAndSet(State.HALF_OPEN, State.CLOSED)) {
+            /**
+             * 重置统计数据
+             *
+             * 响应时间断路器重置数据: 慢调用数量/总调用数量
+             * @see ResponseTimeCircuitBreaker#resetStat()
+             *
+             * 异常断路器重置数据: 错误调用数量/总调用数量
+             * @see ExceptionCircuitBreaker#resetStat()
+             */
             resetStat();
             notifyObservers(State.HALF_OPEN, State.CLOSED, null);
             return true;
@@ -164,6 +188,10 @@ public abstract class AbstractCircuitBreaker implements CircuitBreaker {
         return false;
     }
 
+    /**
+     * 将断路器状态修改为开启状态
+     * @param triggerValue
+     */
     protected void transformToOpen(double triggerValue) {
         State cs = currentState.get();
         switch (cs) {

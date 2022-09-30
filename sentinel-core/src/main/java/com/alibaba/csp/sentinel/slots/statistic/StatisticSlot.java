@@ -17,9 +17,11 @@ package com.alibaba.csp.sentinel.slots.statistic;
 
 import java.util.Collection;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.node.Node;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotEntryCallback;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotExitCallback;
+import com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot;
 import com.alibaba.csp.sentinel.slots.block.flow.PriorityWaitException;
 import com.alibaba.csp.sentinel.spi.Spi;
 import com.alibaba.csp.sentinel.util.TimeUtil;
@@ -33,6 +35,7 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 
 /**
+ * 统计数据
  * <p>
  * A processor slot that dedicates to real time statistics.
  * When entering this slot, we need to separately count the following
@@ -56,9 +59,14 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                       boolean prioritized, Object... args) throws Throwable {
         try {
             // Do some checking.
+            /**
+             * 执行链中下一个ProcessorSlot的entry方法
+             *
+             * @see AuthoritySlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+             */
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
 
-            // Request passed, add thread count and pass count.
+            // Request passed, add thread count and pass count. 请求通过，添加线程计数和通过请求计数。
             node.increaseThreadNum();
             node.addPassRequest(count);
 
@@ -68,8 +76,9 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                 context.getCurEntry().getOriginNode().addPassRequest(count);
             }
 
+            // 入站
             if (resourceWrapper.getEntryType() == EntryType.IN) {
-                // Add count for global inbound entry node for global statistics.
+                // Add count for global inbound entry node for global statistics. 为全局统计添加全局入站输入节点的计数。
                 Constants.ENTRY_NODE.increaseThreadNum();
                 Constants.ENTRY_NODE.addPassRequest(count);
             }
@@ -94,10 +103,11 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                 handler.onPass(context, resourceWrapper, node, count, args);
             }
         } catch (BlockException e) {
+            // 捕获阻塞异常, 被限流, 不符合流控规则等.
             // Blocked, set block exception to current entry.
             context.getCurEntry().setBlockError(e);
 
-            // Add block count.
+            // Add block count. 累加阻塞的QPS数量
             node.increaseBlockQps(count);
             if (context.getCurEntry().getOriginNode() != null) {
                 context.getCurEntry().getOriginNode().increaseBlockQps(count);
@@ -112,7 +122,12 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             for (ProcessorSlotEntryCallback<DefaultNode> handler : StatisticSlotCallbackRegistry.getEntryCallbacks()) {
                 handler.onBlocked(e, context, resourceWrapper, node, count, args);
             }
-
+            /**
+             * 向上抛出异常,
+             * 因为此处是请求的接口上加入了 {@link SentinelResource} 注解,
+             * 用户在请求接口时, 会被 {@link com.alibaba.csp.sentinel.annotation.aspectj.SentinelResourceAspect} 切面增强, 进入Sentinel流控管理,
+             * 而此时被流控抛出阻塞异常, 会被 {@code SentinelResourceAspect} 的切面方法捕获到BlockException, 执行处理阻塞异常.
+             */
             throw e;
         } catch (Throwable e) {
             // Unexpected internal error, set error to current entry.
@@ -149,6 +164,12 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         }
 
         // fix bug https://github.com/alibaba/Sentinel/issues/2374
+
+        /**
+         * 执行链中下一个ProcessorSlot的exit方法
+         *
+         * @see AuthoritySlot#exit(Context, ResourceWrapper, int, Object...)
+         */
         fireExit(context, resourceWrapper, count, args);
     }
 

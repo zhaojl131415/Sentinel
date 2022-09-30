@@ -71,6 +71,7 @@ public final class FlowRuleUtil {
     }
 
     /**
+     * 构建流控规则Map
      * Build the flow rule map from raw list of flow rules, grouping by provided group function.
      *
      * @param list          raw list of flow rules
@@ -82,13 +83,15 @@ public final class FlowRuleUtil {
      */
     public static <K> Map<K, List<FlowRule>> buildFlowRuleMap(List<FlowRule> list, Function<FlowRule, K> groupFunction,
                                                               Predicate<FlowRule> filter, boolean shouldSort) {
+        // 流控规则Map
         Map<K, List<FlowRule>> newRuleMap = new ConcurrentHashMap<>();
         if (list == null || list.isEmpty()) {
             return newRuleMap;
         }
         Map<K, Set<FlowRule>> tmpMap = new ConcurrentHashMap<>();
-
+        // 遍历流控规则集合
         for (FlowRule rule : list) {
+            // 校验流控规则
             if (!isValidRule(rule)) {
                 RecordLog.warn("[FlowRuleManager] Ignoring invalid flow rule when loading new flow rules: " + rule);
                 continue;
@@ -116,6 +119,7 @@ public final class FlowRuleUtil {
 
             flowRules.add(rule);
         }
+        // 排序流控规则
         Comparator<FlowRule> comparator = new FlowRuleComparator();
         for (Entry<K, Set<FlowRule>> entries : tmpMap.entrySet()) {
             List<FlowRule> rules = new ArrayList<>(entries.getValue());

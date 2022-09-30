@@ -21,9 +21,19 @@ import com.alibaba.csp.sentinel.context.Context;
 import com.alibaba.csp.sentinel.context.ContextUtil;
 import com.alibaba.csp.sentinel.context.NullContext;
 import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.node.Node;
+import com.alibaba.csp.sentinel.slotchain.DefaultProcessorSlotChain;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
+import com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeSlot;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowSlot;
+import com.alibaba.csp.sentinel.slots.clusterbuilder.ClusterBuilderSlot;
+import com.alibaba.csp.sentinel.slots.logger.LogSlot;
+import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
+import com.alibaba.csp.sentinel.slots.statistic.StatisticSlot;
+import com.alibaba.csp.sentinel.slots.system.SystemSlot;
 import com.alibaba.csp.sentinel.util.function.BiConsumer;
 
 /**
@@ -106,6 +116,20 @@ class CtEntry extends Entry {
             } else {
                 // Go through the onExit hook of all slots.
                 if (chain != null) {
+                    /**
+                     * 进入链, 执行ProcessorSlot的exit方法
+                     *
+                     * 执行顺序:
+                     * @see DefaultProcessorSlotChain#exit(Context, ResourceWrapper, int, Object...)
+                     * @see NodeSelectorSlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see ClusterBuilderSlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see LogSlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see StatisticSlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see AuthoritySlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see SystemSlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see FlowSlot#exit(Context, ResourceWrapper, int, Object...)
+                     * @see DegradeSlot#exit(Context, ResourceWrapper, int, Object...)
+                     */
                     chain.exit(context, resourceWrapper, count, args);
                 }
                 // Go through the existing terminate handlers (associated to this invocation).

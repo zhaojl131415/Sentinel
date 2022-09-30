@@ -50,8 +50,12 @@ import java.util.concurrent.TimeUnit;
  */
 public class FlowRuleManager {
 
+    /**
+     * 用于存储流控规则 <资源名, 流控规则集合>
+     */
     private static volatile Map<String, List<FlowRule>> flowRules = new HashMap<>();
 
+    // 流控规则属性监听器
     private static final FlowPropertyListener LISTENER = new FlowPropertyListener();
     private static SentinelProperty<List<FlowRule>> currentProperty = new DynamicSentinelProperty<List<FlowRule>>();
 
@@ -151,19 +155,31 @@ public class FlowRuleManager {
 
     private static final class FlowPropertyListener implements PropertyListener<List<FlowRule>> {
 
+        /**
+         * 流控规则配置更新
+         * @param value updated value.
+         */
         @Override
         public synchronized void configUpdate(List<FlowRule> value) {
+            // 构建流控规则Map
             Map<String, List<FlowRule>> rules = FlowRuleUtil.buildFlowRuleMap(value);
             if (rules != null) {
+                // 替换全局流控规则缓存
                 flowRules = rules;
             }
             RecordLog.info("[FlowRuleManager] Flow rules received: {}", rules);
         }
 
+        /**
+         * 流控规则加载
+         * @param conf the value loaded.
+         */
         @Override
         public synchronized void configLoad(List<FlowRule> conf) {
+            // 构建流控规则Map
             Map<String, List<FlowRule>> rules = FlowRuleUtil.buildFlowRuleMap(conf);
             if (rules != null) {
+                // 替换全局流控规则缓存
                 flowRules = rules;
             }
             RecordLog.info("[FlowRuleManager] Flow rules loaded: {}", rules);

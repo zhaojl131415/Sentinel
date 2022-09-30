@@ -72,7 +72,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<Object> {
     }
 
     /**
-     * netty 入栈处理器 执行
+     * netty 入站处理器 执行
      * @param ctx
      * @param msg
      * @throws Exception

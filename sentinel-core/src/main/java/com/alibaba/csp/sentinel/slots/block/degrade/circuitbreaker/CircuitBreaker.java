@@ -27,7 +27,9 @@ import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
 public interface CircuitBreaker {
 
     /**
+     * 获取关联的熔断降级规则
      * Get the associated circuit breaking rule.
+     *
      *
      * @return associated circuit breaking rule
      */
@@ -61,10 +63,12 @@ public interface CircuitBreaker {
      */
     enum State {
         /**
+         * 断路器开启
          * In {@code OPEN} state, all requests will be rejected until the next recovery time point.
          */
         OPEN,
         /**
+         * 断路器半开
          * In {@code HALF_OPEN} state, the circuit breaker will allow a "probe" invocation.
          * If the invocation is abnormal according to the strategy (e.g. it's slow), the circuit breaker
          * will re-transform to the {@code OPEN} state and wait for the next recovery time point;
@@ -73,6 +77,7 @@ public interface CircuitBreaker {
          */
         HALF_OPEN,
         /**
+         * 断路器关闭
          * In {@code CLOSED} state, all requests are permitted. When current metric value exceeds the threshold,
          * the circuit breaker will transform to {@code OPEN} state.
          */

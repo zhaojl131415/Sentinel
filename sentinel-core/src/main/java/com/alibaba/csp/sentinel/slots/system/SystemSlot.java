@@ -21,6 +21,7 @@ import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowSlot;
 import com.alibaba.csp.sentinel.spi.Spi;
 
 /**
@@ -35,12 +36,25 @@ public class SystemSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
+        // 系统规则检验
         SystemRuleManager.checkSystem(resourceWrapper, count);
+
+        /**
+         * 执行链中下一个ProcessorSlot的entry方法
+         *
+         * @see FlowSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+         */
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+
+        /**
+         * 执行链中下一个ProcessorSlot的exit方法
+         *
+         * @see FlowSlot#exit(Context, ResourceWrapper, int, Object...)
+         */
         fireExit(context, resourceWrapper, count, args);
     }
 

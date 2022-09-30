@@ -31,6 +31,7 @@ import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotChain;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
+import com.alibaba.csp.sentinel.slots.logger.LogSlot;
 import com.alibaba.csp.sentinel.spi.Spi;
 
 /**
@@ -101,11 +102,21 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
             context.getCurEntry().setOriginNode(originNode);
         }
 
+        /**
+         * 执行链中下一个ProcessorSlot的entry方法
+         *
+         * @see LogSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+         */
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+        /**
+         * 执行链中下一个ProcessorSlot的exit方法
+         *
+         * @see LogSlot#exit(Context, ResourceWrapper, int, Object...)
+         */
         fireExit(context, resourceWrapper, count, args);
     }
 

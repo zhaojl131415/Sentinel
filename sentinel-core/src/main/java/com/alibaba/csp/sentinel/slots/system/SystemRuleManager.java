@@ -282,6 +282,7 @@ public final class SystemRuleManager {
     }
 
     /**
+     * 将SystemRule应用到资源中。只会检查入站流量。
      * Apply {@link SystemRule} to the resource. Only inbound traffic will be checked.
      *
      * @param resourceWrapper the resource.
@@ -307,7 +308,7 @@ public final class SystemRuleManager {
             throw new SystemBlockException(resourceWrapper.getName(), "qps");
         }
 
-        // total thread
+        // total thread 线程数
         int currentThread = Constants.ENTRY_NODE.curThreadNum();
         if (currentThread > maxThread) {
             throw new SystemBlockException(resourceWrapper.getName(), "thread");

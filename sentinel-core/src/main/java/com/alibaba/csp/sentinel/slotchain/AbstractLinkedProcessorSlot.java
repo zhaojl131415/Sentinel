@@ -25,6 +25,17 @@ public abstract class AbstractLinkedProcessorSlot<T> implements ProcessorSlot<T>
 
     private AbstractLinkedProcessorSlot<?> next = null;
 
+    /**
+     * 传递ProcessorSlot的entry方法
+     *
+     * @param context         current {@link Context}
+     * @param resourceWrapper current resource
+     * @param obj             relevant object (e.g. Node)
+     * @param count           tokens needed
+     * @param prioritized     whether the entry is prioritized
+     * @param args            parameters of the original call
+     * @throws Throwable
+     */
     @Override
     public void fireEntry(Context context, ResourceWrapper resourceWrapper, Object obj, int count, boolean prioritized, Object... args)
         throws Throwable {
@@ -37,6 +48,9 @@ public abstract class AbstractLinkedProcessorSlot<T> implements ProcessorSlot<T>
     void transformEntry(Context context, ResourceWrapper resourceWrapper, Object o, int count, boolean prioritized, Object... args)
         throws Throwable {
         T t = (T)o;
+        /**
+         * @see DefaultProcessorSlotChain#first 中的entry方法
+         */
         entry(context, resourceWrapper, t, count, prioritized, args);
     }
 

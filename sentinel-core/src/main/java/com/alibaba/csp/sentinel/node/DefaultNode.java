@@ -106,6 +106,10 @@ public class DefaultNode extends StatisticNode {
         return childList;
     }
 
+    /**
+     * 累加阻塞的QPS数量
+     * @param count count to add
+     */
     @Override
     public void increaseBlockQps(int count) {
         super.increaseBlockQps(count);

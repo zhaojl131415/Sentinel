@@ -73,27 +73,32 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
 
     @Override
     public void onRequestComplete(Context context) {
+        // 获取当前滑动时间窗口的计数器
         SlowRequestCounter counter = slidingCounter.currentWindow().value();
         Entry entry = context.getCurEntry();
         if (entry == null) {
             return;
         }
+        // 当前业务请求的完成时间
         long completeTime = entry.getCompleteTimestamp();
         if (completeTime <= 0) {
             completeTime = TimeUtil.currentTimeMillis();
         }
+        // 计算业务请求的响应时长: 业务请求的完成时间 - 业务请求发起的时间
         long rt = completeTime - entry.getCreateTimestamp();
-        // 慢调用比例
+        // 如果业务请求的响应时长 > 慢调用比例中配置的最大RT
         if (rt > maxAllowedRt) {
+            // 表示为慢调用, 滑动时间窗口计数器 慢调用数量累加1
             counter.slowCount.add(1);
         }
+        // 滑动时间窗口计数器 总调用数累加1
         counter.totalCount.add(1);
-        // 超过阈值时处理状态变更
+        // 根据 业务请求响应时长 处理 断路器状态变更
         handleStateChangeWhenThresholdExceeded(rt);
     }
 
     /**
-     * 超过阈值时处理状态变更
+     * 根据 业务请求响应时长 处理 断路器状态变更
      * @param rt
      */
     private void handleStateChangeWhenThresholdExceeded(long rt) {
@@ -105,7 +110,7 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         if (currentState.get() == State.HALF_OPEN) {
             // In detecting request
             // TODO: improve logic for half-open recovery
-            // 如果时间大于最大的RT, 则将断路器状态变更为全开, 否则关闭断路器, 请求正常访问.
+            // 如果业务请求的响应时长 > 慢调用比例中配置的最大RT, 则将断路器状态变更为全开, 否则关闭断路器, 请求正常访问.
             if (rt > maxAllowedRt) {
                 // 半开 -> 全开
                 fromHalfOpenToOpen(1.0d);
@@ -115,11 +120,14 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
             }
             return;
         }
+        // 断路器关闭状态
 
+        // 滑动时间窗口
         List<SlowRequestCounter> counters = slidingCounter.values();
         long slowCount = 0;
         // 用于存储时间窗口内的请求数量
         long totalCount = 0;
+        // 遍历计算慢调用数量和总调用数量
         for (SlowRequestCounter counter : counters) {
             slowCount += counter.slowCount.sum();
             totalCount += counter.totalCount.sum();
@@ -132,11 +140,13 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
         double currentRatio = slowCount * 1.0d / totalCount;
         // 如果慢调用的比例高于设置的最大慢调用比例, 则将断路器的状态改为 全开状态
         if (currentRatio > maxSlowRequestRatio) {
-            // 全开状态
+            // 将断路器状态修改为开启状态
             transformToOpen(currentRatio);
         }
+        //
         if (Double.compare(currentRatio, maxSlowRequestRatio) == 0 &&
                 Double.compare(maxSlowRequestRatio, SLOW_REQUEST_RATIO_MAX_VALUE) == 0) {
+            // 将断路器状态修改为开启状态
             transformToOpen(currentRatio);
         }
     }
@@ -158,6 +168,10 @@ public class ResponseTimeCircuitBreaker extends AbstractCircuitBreaker {
             return totalCount;
         }
 
+        /**
+         * 重置数据: 慢调用数量/总调用数量
+         * @return
+         */
         public SlowRequestCounter reset() {
             slowCount.reset();
             totalCount.reset();

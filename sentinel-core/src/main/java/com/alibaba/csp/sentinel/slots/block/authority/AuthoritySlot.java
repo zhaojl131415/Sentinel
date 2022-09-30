@@ -24,6 +24,7 @@ import com.alibaba.csp.sentinel.node.DefaultNode;
 import com.alibaba.csp.sentinel.slotchain.AbstractLinkedProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlot;
 import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
+import com.alibaba.csp.sentinel.slots.system.SystemSlot;
 import com.alibaba.csp.sentinel.spi.Spi;
 
 /**
@@ -40,11 +41,21 @@ public class AuthoritySlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         throws Throwable {
         // 检查黑/白名单授权, 通过进入下一步执行请求
         checkBlackWhiteAuthority(resourceWrapper, context);
+        /**
+         * 执行链中下一个ProcessorSlot的entry方法
+         *
+         * @see SystemSlot#entry(Context, ResourceWrapper, DefaultNode, int, boolean, Object...)
+         */
         fireEntry(context, resourceWrapper, node, count, prioritized, args);
     }
 
     @Override
     public void exit(Context context, ResourceWrapper resourceWrapper, int count, Object... args) {
+        /**
+         * 执行链中下一个ProcessorSlot的exit方法
+         *
+         * @see SystemSlot#exit(Context, ResourceWrapper, int, Object...)
+         */
         fireExit(context, resourceWrapper, count, args);
     }
 

@@ -78,17 +78,18 @@ public class DegradeSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     @Override
     public void exit(Context context, ResourceWrapper r, int count, Object... args) {
         Entry curEntry = context.getCurEntry();
+        // 判断是否有报错
         if (curEntry.getBlockError() != null) {
             fireExit(context, r, count, args);
             return;
         }
-        // 获取断路器集合
+        // 根据资源名获取对应的断路器集合
         List<CircuitBreaker> circuitBreakers = DegradeRuleManager.getCircuitBreakers(r.getName());
         if (circuitBreakers == null || circuitBreakers.isEmpty()) {
             fireExit(context, r, count, args);
             return;
         }
-
+        // 如果没有报错
         if (curEntry.getBlockError() == null) {
             // passed request
             for (CircuitBreaker circuitBreaker : circuitBreakers) {
