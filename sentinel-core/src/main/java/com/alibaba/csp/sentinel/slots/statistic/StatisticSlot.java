@@ -19,6 +19,7 @@ import java.util.Collection;
 
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.node.Node;
+import com.alibaba.csp.sentinel.node.StatisticNode;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotEntryCallback;
 import com.alibaba.csp.sentinel.slotchain.ProcessorSlotExitCallback;
 import com.alibaba.csp.sentinel.slots.block.authority.AuthoritySlot;
@@ -68,6 +69,9 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
 
             // Request passed, add thread count and pass count. 请求通过，添加线程计数和通过请求计数。
             node.increaseThreadNum();
+            /**
+             * @see StatisticNode#addPassRequest(int)
+             */
             node.addPassRequest(count);
 
             if (context.getCurEntry().getOriginNode() != null) {
@@ -150,6 +154,9 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             Throwable error = context.getCurEntry().getError();
 
             // Record response time and success count.
+            /**
+             * 记录响应时间和成功次数。
+             */
             recordCompleteFor(node, count, rt, error);
             recordCompleteFor(context.getCurEntry().getOriginNode(), count, rt, error);
             if (resourceWrapper.getEntryType() == EntryType.IN) {
@@ -173,14 +180,28 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         fireExit(context, resourceWrapper, count, args);
     }
 
+    /**
+     * 记录响应时间和成功次数。
+     * @param node
+     * @param batchCount
+     * @param rt
+     * @param error
+     */
     private void recordCompleteFor(Node node, int batchCount, long rt, Throwable error) {
         if (node == null) {
             return;
         }
+
+        /**
+         * 记录响应时间和成功次数。
+         * @see StatisticNode#addRtAndSuccess(long, int)
+         */
         node.addRtAndSuccess(rt, batchCount);
+        // 减少当前线程数
         node.decreaseThreadNum();
 
         if (error != null && !(error instanceof BlockException)) {
+            // 如果存在非阻塞的异常, 累加异常次数
             node.increaseExceptionQps(batchCount);
         }
     }

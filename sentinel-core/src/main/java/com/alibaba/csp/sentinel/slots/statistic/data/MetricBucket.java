@@ -71,6 +71,11 @@ public class MetricBucket {
     }
 
     public MetricBucket add(MetricEvent event, long n) {
+        /**
+         * 计数器对指定的事件进行累加
+         *
+         * ordinal(): 该方法为枚举类的方法, 返回类型为int ，它返回该枚举常量的位置。
+         */
         counters[event.ordinal()].add(n);
         return this;
     }
@@ -103,6 +108,10 @@ public class MetricBucket {
         return get(MetricEvent.SUCCESS);
     }
 
+    /**
+     * 累加通过数量
+     * @param n
+     */
     public void addPass(int n) {
         add(MetricEvent.PASS, n);
     }

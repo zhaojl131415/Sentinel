@@ -30,6 +30,11 @@ public class OccupiableBucketLeapArray extends LeapArray<MetricBucket> {
 
     private final FutureBucketLeapArray borrowArray;
 
+    /**
+     * 将指定的 时间窗口时长 按照 时间窗格数量 分成 等量时长的时间窗格
+     * @param sampleCount 时间窗格数量
+     * @param intervalInMs 时间窗口时长
+     */
     public OccupiableBucketLeapArray(int sampleCount, int intervalInMs) {
         // This class is the original "CombinedBucketArray".
         super(sampleCount, intervalInMs);
@@ -50,7 +55,8 @@ public class OccupiableBucketLeapArray extends LeapArray<MetricBucket> {
 
     @Override
     protected WindowWrap<MetricBucket> resetWindowTo(WindowWrap<MetricBucket> w, long time) {
-        // Update the start time and reset value.
+        // Update the start time and reset value.  更新开始时间和重置值。
+        // 重置时间窗格开始时间
         w.resetTo(time);
         MetricBucket borrowBucket = borrowArray.getWindowValue(time);
         if (borrowBucket != null) {

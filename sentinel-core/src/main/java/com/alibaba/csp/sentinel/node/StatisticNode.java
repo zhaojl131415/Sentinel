@@ -95,6 +95,12 @@ public class StatisticNode implements Node {
      *
      * Holds statistics of the recent {@code INTERVAL} milliseconds. The {@code INTERVAL} is divided into time spans
      * by given {@code sampleCount}.
+     *
+     * transient: 不用序列化
+     * volatile: 保证线程之间的可见性
+     *
+     * 默认实例化一个总时长1秒的滑动时间窗口, 其中分两个窗格, 每个窗格500ms
+     *
      */
     private transient volatile Metric rollingCounterInSecond = new ArrayMetric(SampleCountProperty.SAMPLE_COUNT,
         IntervalProperty.INTERVAL);
@@ -105,6 +111,8 @@ public class StatisticNode implements Node {
      *
      * Holds statistics of the recent 60 seconds. The windowLengthInMs is deliberately set to 1000 milliseconds,
      * meaning each bucket per second, in this way we can get accurate statistics of each second.
+     *
+     * 默认实例化一个总时长1分钟的滑动时间窗口, 其中分60个窗格, 每个窗格1秒
      */
     private transient Metric rollingCounterInMinute = new ArrayMetric(60, 60 * 1000, false);
 
@@ -202,11 +210,20 @@ public class StatisticNode implements Node {
         return rollingCounterInMinute.exception();
     }
 
+    /**
+     * 计算当前时间窗口内通过请求的QPS
+     */
     @Override
     public double passQps() {
         /**
          * 难度高
          * 算法计算QPS: 滑动时间窗口
+         *
+         * @see ArrayMetric#pass()
+         * @see ArrayMetric#getWindowIntervalInSec()
+         *
+         * rollingCounterInSecond 为总时长1秒的滑动时间窗口
+         * 当前时间窗口的总通过数 / 当前时间窗口时长(默认1s)
          */
         return rollingCounterInSecond.pass() / rollingCounterInSecond.getWindowIntervalInSec();
     }
@@ -216,6 +233,9 @@ public class StatisticNode implements Node {
         return rollingCounterInMinute.pass();
     }
 
+    /**
+     * 计算当前时间窗口内成功请求的QPS
+     */
     @Override
     public double successQps() {
         return rollingCounterInSecond.success() / rollingCounterInSecond.getWindowIntervalInSec();
@@ -254,13 +274,22 @@ public class StatisticNode implements Node {
 
     @Override
     public void addPassRequest(int count) {
+        /**
+         * @see ArrayMetric#addPass(int)
+         */
         rollingCounterInSecond.addPass(count);
         rollingCounterInMinute.addPass(count);
     }
 
     @Override
     public void addRtAndSuccess(long rt, int successCount) {
+        /**
+         * @see ArrayMetric#addSuccess(int)
+         */
         rollingCounterInSecond.addSuccess(successCount);
+        /**
+         * @see ArrayMetric#addRT(long)
+         */
         rollingCounterInSecond.addRT(rt);
 
         rollingCounterInMinute.addSuccess(successCount);

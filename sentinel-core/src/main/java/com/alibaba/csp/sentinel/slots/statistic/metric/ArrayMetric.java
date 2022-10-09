@@ -104,12 +104,16 @@ public class ArrayMetric implements Metric {
         return block;
     }
 
+    /**
+     * 获取当前时间窗口的总通过数
+     */
     @Override
     public long pass() {
         data.currentWindow();
         long pass = 0;
+        // 获取滑动时间窗口的时间窗格集合
         List<MetricBucket> list = data.values();
-
+        // 遍历累加计算总通过数
         for (MetricBucket window : list) {
             pass += window.pass();
         }
@@ -236,19 +240,25 @@ public class ArrayMetric implements Metric {
 
     @Override
     public void addSuccess(int count) {
+        // 获取当前时间窗格
         WindowWrap<MetricBucket> wrap = data.currentWindow();
+        // 当前时间窗格累加成功数
         wrap.value().addSuccess(count);
     }
 
     @Override
     public void addPass(int count) {
+        // 获取当前时间窗格
         WindowWrap<MetricBucket> wrap = data.currentWindow();
+        // 当前时间窗格累加通过数
         wrap.value().addPass(count);
     }
 
     @Override
     public void addRT(long rt) {
+        // 获取当前时间窗格
         WindowWrap<MetricBucket> wrap = data.currentWindow();
+        // 当前时间窗格累加响应时长
         wrap.value().addRT(rt);
     }
 
@@ -326,6 +336,9 @@ public class ArrayMetric implements Metric {
         return data.currentWaiting();
     }
 
+    /**
+     * 当前时间窗口的总时长
+     */
     @Override
     public double getWindowIntervalInSec() {
         return data.getIntervalInSecond();
