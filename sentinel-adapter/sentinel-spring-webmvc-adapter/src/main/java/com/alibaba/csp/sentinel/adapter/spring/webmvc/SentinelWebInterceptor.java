@@ -26,6 +26,8 @@ import org.springframework.web.servlet.HandlerMapping;
 /**
  * Spring Web MVC interceptor that integrates with Sentinel.
  *
+ * 继承了抽象类: {@link AbstractSentinelInterceptor}, 抽象类实现了处理器拦截器(HandlerInterceptor)接口, 会在客户端调用controller之前进行拦截处理.
+ *
  * @author kaizi2009
  * @since 1.7.1
  */

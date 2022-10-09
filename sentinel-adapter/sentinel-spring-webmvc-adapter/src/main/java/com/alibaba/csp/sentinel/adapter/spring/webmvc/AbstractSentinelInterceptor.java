@@ -52,7 +52,8 @@ import org.springframework.web.servlet.ModelAndView;
  * @author kaizi2009
  * @since 1.7.1
  *
- * 抽象的Sentinel拦截器, 实现了处理器拦截器(HandlerInterceptor)接口, 会在客户端调用controller之前进行拦截处理.
+ * 抽象的Sentinel拦截器, 实现了处理器拦截器(HandlerInterceptor)接口, 会在客户端调用controller之前进入下面方法进行拦截处理.
+ * @see AbstractSentinelInterceptor#preHandle(HttpServletRequest, HttpServletResponse, Object)
  * 原理见Servlet规范
  */
 public abstract class AbstractSentinelInterceptor implements HandlerInterceptor {
