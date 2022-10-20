@@ -32,7 +32,8 @@ public class Env {
     public static final Sph sph = new CtSph();
 
     static {
-        // If init fails, the process will exit.
+        // If init fails, the process will exit. 如果初始化失败，进程将退出。
+        // 初始化: 通信
         InitExecutor.doInit();
     }
 

@@ -41,10 +41,15 @@ public abstract class AbstractDataSource<S, T> implements ReadableDataSource<S, 
 
     @Override
     public T loadConfig() throws Exception {
+        /**
+         * 读取数据源后加载规则配置
+         * @see FileRefreshableDataSource#readSource()
+         */
         return loadConfig(readSource());
     }
 
     public T loadConfig(S conf) throws Exception {
+        // 解析规则配置
         T value = parser.convert(conf);
         return value;
     }

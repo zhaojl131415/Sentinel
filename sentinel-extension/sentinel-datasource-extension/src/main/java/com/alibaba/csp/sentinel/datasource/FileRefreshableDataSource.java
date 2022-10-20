@@ -22,6 +22,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 
 import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.property.DynamicSentinelProperty;
 
 /**
  * <p>
@@ -35,6 +36,8 @@ import com.alibaba.csp.sentinel.log.RecordLog;
  *
  * @author Carpenter Lee
  * @author Eric Zhao
+ *
+ * 从配置文件中加载规则配置
  */
 public class FileRefreshableDataSource<T> extends AutoRefreshDataSource<String, T> {
 
@@ -91,18 +94,35 @@ public class FileRefreshableDataSource<T> extends AutoRefreshDataSource<String, 
         this.charset = charset;
         // If the file does not exist, the last modified will be 0.
         this.lastModified = file.lastModified();
+        // 读取数据源配置
         firstLoad();
     }
 
+    /**
+     * 读取数据源配置
+     */
     private void firstLoad() {
         try {
+            /**
+             * 从数据源中读取规则配置
+             * @see AbstractDataSource#loadConfig()
+             */
             T newValue = loadConfig();
+            /**
+             * 规则配置更新
+             * @see DynamicSentinelProperty#updateValue(Object)
+             */
             getProperty().updateValue(newValue);
         } catch (Throwable e) {
             RecordLog.info("loadConfig exception", e);
         }
     }
 
+    /**
+     * 读取配置文件中的规则配置
+     * @return
+     * @throws Exception
+     */
     @Override
     public String readSource() throws Exception {
         if (!file.exists()) {
@@ -129,6 +149,10 @@ public class FileRefreshableDataSource<T> extends AutoRefreshDataSource<String, 
         }
     }
 
+    /**
+     * 判断配置文件是否修改
+     * @return
+     */
     @Override
     protected boolean isModified() {
         long curLastModified = file.lastModified();

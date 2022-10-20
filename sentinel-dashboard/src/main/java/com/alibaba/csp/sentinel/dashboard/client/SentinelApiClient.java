@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayFlowRule;
 import com.alibaba.csp.sentinel.command.CommandConstants;
+import com.alibaba.csp.sentinel.command.CommandRequest;
+import com.alibaba.csp.sentinel.command.handler.ModifyRulesCommandHandler;
 import com.alibaba.csp.sentinel.config.SentinelConfig;
 import com.alibaba.csp.sentinel.command.vo.NodeVo;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.gateway.ApiDefinitionEntity;
@@ -282,6 +284,10 @@ public class SentinelApiClient {
             future.completeExceptionally(new IllegalArgumentException("Bad URL or command name"));
             return future;
         }
+        /**
+         * 根据ip/端口/api 拼装http地址后, 发送HTTP请求
+         * http://ip:port/setRules
+         */
         StringBuilder urlBuilder = new StringBuilder();
         urlBuilder.append("http://");
         urlBuilder.append(ip).append(':').append(port).append('/').append(api);
@@ -298,6 +304,7 @@ public class SentinelApiClient {
                 }
                 urlBuilder.append(queryString(params));
             }
+            // get
             return executeCommand(new HttpGet(urlBuilder.toString()));
         } else {
             // Using POST
@@ -308,15 +315,19 @@ public class SentinelApiClient {
     
     private CompletableFuture<String> executeCommand(HttpUriRequest request) {
         CompletableFuture<String> future = new CompletableFuture<>();
+        // 执行http请求, 完成回调
         httpClient.execute(request, new FutureCallback<HttpResponse>() {
             @Override
             public void completed(final HttpResponse response) {
+                // 获取http响应状态码
                 int statusCode = response.getStatusLine().getStatusCode();
                 try {
                     String value = getBody(response);
+                    // 根据http响应状态码, 判断请求是否成功
                     if (isSuccess(statusCode)) {
                         future.complete(value);
                     } else {
+                        // 请求不成功, 判断是否是api地址没找到
                         if (isCommandNotFound(statusCode, value)) {
                             future.completeExceptionally(new CommandNotFoundException(request.getURI().getPath()));
                         } else {
@@ -419,11 +430,16 @@ public class SentinelApiClient {
             AssertUtil.notEmpty(app, "Bad app name");
             AssertUtil.notEmpty(ip, "Bad machine IP");
             AssertUtil.isTrue(port > 0, "Bad machine port");
+            // 类型转换: FlowRuleEntity -> FlowRule
             String data = JSON.toJSONString(
                 entities.stream().map(r -> r.toRule()).collect(Collectors.toList()));
             Map<String, String> params = new HashMap<>(2);
             params.put("type", type);
             params.put("data", data);
+            /**
+             * 发送HTTP请求: http://ip:port/setRules, 会被{@link ModifyRulesCommandHandler}接收到, 执行handle方法.
+             * @see ModifyRulesCommandHandler#handle(CommandRequest)
+             */
             return executeCommand(app, ip, port, SET_RULES_PATH, params, true)
                 .thenCompose(r -> {
                     if ("success".equalsIgnoreCase(r.trim())) {

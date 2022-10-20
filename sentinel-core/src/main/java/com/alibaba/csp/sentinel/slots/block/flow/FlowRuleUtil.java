@@ -105,6 +105,9 @@ public final class FlowRuleUtil {
             TrafficShapingController rater = generateRater(rule);
             rule.setRater(rater);
 
+            /**
+             * @see FlowRuleUtil#extractResource
+             */
             K key = groupFunction.apply(rule);
             if (key == null) {
                 continue;

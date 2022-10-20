@@ -20,6 +20,8 @@ package com.alibaba.csp.sentinel.datasource;
  *
  * @author Eric Zhao
  * @since 0.2.0
+ *
+ * 规则持久化写入数据源扩展点
  */
 public interface WritableDataSource<T> {
 

@@ -63,10 +63,11 @@ public class FileDataSourceDemo {
 
     public static void main(String[] args) throws Exception {
         FileDataSourceDemo demo = new FileDataSourceDemo();
+        // 通过监听器, 将数据源配置文件中的规则读取到内存中
         demo.listenRules();
 
         /*
-         * Start to require tokens, rate will be limited by rule in FlowRule.json
+         * Start to require tokens, rate will be limited by rule in FlowRule.json 开始需要令牌，比例将受 FlowRule.json 中的规则限制
          */
         FlowQpsRunner runner = new FlowQpsRunner();
         runner.simulateTraffic();
@@ -75,22 +76,24 @@ public class FileDataSourceDemo {
 
     private void listenRules() throws Exception {
         ClassLoader classLoader = getClass().getClassLoader();
+        // 获取规则配置路径
         String flowRulePath = URLDecoder.decode(classLoader.getResource("FlowRule.json").getFile(), "UTF-8");
         String degradeRulePath = URLDecoder.decode(classLoader.getResource("DegradeRule.json").getFile(), "UTF-8");
         String systemRulePath = URLDecoder.decode(classLoader.getResource("SystemRule.json").getFile(), "UTF-8");
 
-        // Data source for FlowRule
+        // Data source for FlowRule 读取数据源配置文件加载 流控规则
         FileRefreshableDataSource<List<FlowRule>> flowRuleDataSource = new FileRefreshableDataSource<>(
             flowRulePath, flowRuleListParser);
+        // 注册配置
         FlowRuleManager.register2Property(flowRuleDataSource.getProperty());
 
-        // Data source for DegradeRule
+        // Data source for DegradeRule 读取数据源配置文件加载 熔断降级规则
         FileRefreshableDataSource<List<DegradeRule>> degradeRuleDataSource
             = new FileRefreshableDataSource<>(
             degradeRulePath, degradeRuleListParser);
         DegradeRuleManager.register2Property(degradeRuleDataSource.getProperty());
 
-        // Data source for SystemRule
+        // Data source for SystemRule 读取数据源配置文件加载 系统规则
         FileRefreshableDataSource<List<SystemRule>> systemRuleDataSource
             = new FileRefreshableDataSource<>(
             systemRulePath, systemRuleListParser);

@@ -17,6 +17,7 @@ package com.alibaba.csp.sentinel.property;
 
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRuleManager;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 
 import java.util.List;
 import java.util.Set;
@@ -50,6 +51,11 @@ public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
         listeners.remove(listener);
     }
 
+    /**
+     * 规则配置更新
+     * @param newValue the new value.
+     * @return
+     */
     @Override
     public boolean updateValue(T newValue) {
         if (isEqual(value, newValue)) {
@@ -62,8 +68,10 @@ public class DynamicSentinelProperty<T> implements SentinelProperty<T> {
         for (PropertyListener<T> listener : listeners) {
             /**
              *
-             * 熔断降级配置更新
+             * 熔断降级规则配置更新
              * @see DegradeRuleManager.RulePropertyListener#configUpdate(List)
+             * 流控规则配置更新
+             * @see FlowRuleManager.FlowPropertyListener#configUpdate(List)
              */
             listener.configUpdate(newValue);
         }

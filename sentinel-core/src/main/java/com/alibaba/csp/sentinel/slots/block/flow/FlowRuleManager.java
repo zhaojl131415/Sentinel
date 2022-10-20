@@ -24,6 +24,8 @@ import com.alibaba.csp.sentinel.property.PropertyListener;
 import com.alibaba.csp.sentinel.property.SentinelProperty;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 import com.alibaba.csp.sentinel.util.StringUtil;
+import com.alibaba.csp.sentinel.util.function.Function;
+import com.alibaba.csp.sentinel.util.function.Predicate;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +53,7 @@ import java.util.concurrent.TimeUnit;
 public class FlowRuleManager {
 
     /**
-     * 用于存储流控规则 <资源名, 流控规则集合>
+     * 用于缓存流控规则 <资源名, 流控规则集合>
      */
     private static volatile Map<String, List<FlowRule>> flowRules = new HashMap<>();
 
@@ -100,6 +102,9 @@ public class FlowRuleManager {
         synchronized (LISTENER) {
             RecordLog.info("[FlowRuleManager] Registering new property to flow rule manager");
             currentProperty.removeListener(LISTENER);
+            /**
+             * @see DynamicSentinelProperty#addListener(PropertyListener)
+             */
             property.addListener(LISTENER);
             currentProperty = property;
         }
@@ -124,6 +129,9 @@ public class FlowRuleManager {
      * @param rules new rules to load.
      */
     public static void loadRules(List<FlowRule> rules) {
+        /**
+         * @see DynamicSentinelProperty#updateValue(Object)
+         */
         currentProperty.updateValue(rules);
     }
 
@@ -161,7 +169,10 @@ public class FlowRuleManager {
          */
         @Override
         public synchronized void configUpdate(List<FlowRule> value) {
-            // 构建流控规则Map
+            /**
+             * 构建流控规则Map
+             * @see FlowRuleUtil#buildFlowRuleMap(List, Function, Predicate, boolean)
+             */
             Map<String, List<FlowRule>> rules = FlowRuleUtil.buildFlowRuleMap(value);
             if (rules != null) {
                 // 替换全局流控规则缓存

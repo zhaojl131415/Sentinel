@@ -22,6 +22,7 @@ import com.alibaba.csp.sentinel.command.CommandHandler;
 import com.alibaba.csp.sentinel.command.CommandRequest;
 import com.alibaba.csp.sentinel.command.CommandResponse;
 import com.alibaba.csp.sentinel.command.annotation.CommandMapping;
+import com.alibaba.csp.sentinel.datasource.FileWritableDataSource;
 import com.alibaba.csp.sentinel.datasource.WritableDataSource;
 import com.alibaba.csp.sentinel.log.RecordLog;
 import com.alibaba.csp.sentinel.util.StringUtil;
@@ -49,6 +50,11 @@ import static com.alibaba.csp.sentinel.transport.util.WritableDataSourceRegistry
 public class ModifyRulesCommandHandler implements CommandHandler<String> {
     private static final int FASTJSON_MINIMAL_VER = 0x01020C00;
 
+    /**
+     * 流控规则加载
+     * @param request the request to handle
+     * @return
+     */
     @Override
     public CommandResponse<String> handle(CommandRequest request) {
         // XXX from 1.7.2, force to fail when fastjson is older than 1.2.12
@@ -79,9 +85,12 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
         if (FLOW_RULE_TYPE.equalsIgnoreCase(type)) {
             // 拿到sentinel的规则数据进行解析
             List<FlowRule> flowRules = JSONArray.parseArray(data, FlowRule.class);
-            // 将流控规则加载到微服务内存中, 微服务就可以拿到对应的流控规则
+            /**
+             * 将流控规则加载到微服务内存中, 微服务就可以拿到对应的流控规则
+             * @see FlowRuleManager#loadRules(List)
+             */
             FlowRuleManager.loadRules(flowRules);
-            // 持久化写入数据源
+            // 持久化写入数据源: 规则持久化扩展点
             if (!writeToDataSource(getFlowDataSource(), flowRules)) {
                 result = WRITE_DS_FAILURE_MSG;
             }
@@ -121,8 +130,17 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
      * @return true if write successful or data source is empty; false if error occurs
      */
     private <T> boolean writeToDataSource(WritableDataSource<T> dataSource, T value) {
+        /**
+         * 数据源默认为空, 当数据源不为空, 执行写入数据
+         *
+         * 规则持久化扩展点: 可以通过实现WritableDataSource接口, 来自定义数据源.
+         */
         if (dataSource != null) {
             try {
+                /**
+                 * 文件持久化存储规则配置
+                 * @see FileWritableDataSource#write(Object)
+                 */
                 dataSource.write(value);
             } catch (Exception e) {
                 RecordLog.warn("Write data source failed", e);
@@ -132,6 +150,7 @@ public class ModifyRulesCommandHandler implements CommandHandler<String> {
         return true;
     }
 
+    /** 部分成功: 更新内存成功, 写入数据源失败 */
     private static final String WRITE_DS_FAILURE_MSG = "partial success (write data source failed)";
     /** 流控规则 */
     private static final String FLOW_RULE_TYPE = "flow";

@@ -34,6 +34,10 @@ public final class CommandCenterProvider {
     }
 
     private static void resolveInstance() {
+        /**
+         * @see com.alibaba.csp.sentinel.transport.command.NettyHttpCommandCenter
+         * @see com.alibaba.csp.sentinel.transport.command.SimpleHttpCommandCenter
+         */
         CommandCenter resolveCommandCenter = SpiLoader.of(CommandCenter.class).loadHighestPriorityInstance();
 
         if (resolveCommandCenter == null) {

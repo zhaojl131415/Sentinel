@@ -19,6 +19,7 @@ import java.util.*;
 
 import com.alibaba.csp.sentinel.command.annotation.CommandMapping;
 import com.alibaba.csp.sentinel.command.handler.InterceptingCommandHandler;
+import com.alibaba.csp.sentinel.command.handler.ModifyRulesCommandHandler;
 import com.alibaba.csp.sentinel.spi.SpiLoader;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
@@ -38,6 +39,10 @@ public class CommandHandlerProvider implements Iterable<CommandHandler> {
      */
     public Map<String, CommandHandler> namedHandlers() {
         Map<String, CommandHandler> map = new HashMap<String, CommandHandler>();
+        /**
+         * SPI加载CommandHandler
+         * @see ModifyRulesCommandHandler
+         */
         List<CommandHandler> handlers = spiLoader.loadInstanceList();
         List<CommandHandlerInterceptor> commandHandlerInterceptors = SpiLoader.of(CommandHandlerInterceptor.class).loadInstanceListSorted();
         for (CommandHandler handler : handlers) {

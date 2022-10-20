@@ -63,6 +63,11 @@ public class FileWritableDataSource<T> implements WritableDataSource<T> {
         this.charset = charset;
     }
 
+    /**
+     * 将规则配置写入数据源配置文件
+     * @param value value to write
+     * @throws Exception
+     */
     @Override
     public void write(T value) throws Exception {
         lock.lock();

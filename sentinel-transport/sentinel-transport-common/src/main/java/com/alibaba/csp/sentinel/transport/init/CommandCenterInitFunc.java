@@ -36,7 +36,14 @@ public class CommandCenterInitFunc implements InitFunc {
             return;
         }
 
+        /**
+         * 服务端: sentinel服务端/控制台
+         * @see com.alibaba.csp.sentinel.transport.command.NettyHttpCommandCenter#beforeStart()
+         * 客户端: 业务微服务
+         * @see com.alibaba.csp.sentinel.transport.command.SimpleHttpCommandCenter#beforeStart()
+         */
         commandCenter.beforeStart();
+
         /**
          * 服务端: sentinel服务端/控制台
          * @see com.alibaba.csp.sentinel.transport.command.NettyHttpCommandCenter#start()

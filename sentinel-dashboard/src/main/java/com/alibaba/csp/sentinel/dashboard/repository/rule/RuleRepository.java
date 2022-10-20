@@ -20,7 +20,10 @@ import java.util.List;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 
 /**
+ * 存储和查找规则的接口。
  * Interface to store and find rules.
+ *
+ * 规则持久化的扩展点.
  *
  * @author leyou
  */

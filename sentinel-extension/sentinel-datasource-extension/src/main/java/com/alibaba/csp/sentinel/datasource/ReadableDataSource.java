@@ -24,6 +24,8 @@ import com.alibaba.csp.sentinel.property.SentinelProperty;
  * @param <T> target data type
  * @author leyou
  * @author Eric Zhao
+ *
+ * 规则持久化读取数据源扩展点
  */
 public interface ReadableDataSource<S, T> {
 

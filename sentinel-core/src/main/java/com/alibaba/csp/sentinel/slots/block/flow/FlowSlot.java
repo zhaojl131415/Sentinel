@@ -162,7 +162,9 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args) throws Throwable {
-        // 检查流控规则核心代码
+        /**
+         * 检查 流控规则 核心代码
+         */
         checkFlow(resourceWrapper, context, node, count, prioritized);
         /**
          * 执行链中下一个ProcessorSlot的entry方法
@@ -191,8 +193,9 @@ public class FlowSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
         @Override
         public Collection<FlowRule> apply(String resource) {
             // Flow rule map should not be null.
-            // 获取全局的流控规则缓存Map
+            // 通过流控规则管理器, 获取全局的流控规则缓存Map
             Map<String, List<FlowRule>> flowRules = FlowRuleManager.getFlowRuleMap();
+            // 根据资源名获取对应的流控规则集合
             return flowRules.get(resource);
         }
     };

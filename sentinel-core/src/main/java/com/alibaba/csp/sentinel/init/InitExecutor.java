@@ -43,7 +43,7 @@ public final class InitExecutor {
             return;
         }
         try {
-            // 获取InitFunc接口的实例列表
+            // 通过SPI获取InitFunc接口的实例列表
             List<InitFunc> initFuncs = SpiLoader.of(InitFunc.class).loadInstanceListSorted();
             List<OrderWrapper> initList = new ArrayList<OrderWrapper>();
             for (InitFunc initFunc : initFuncs) {

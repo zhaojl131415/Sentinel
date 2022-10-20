@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.RuleEntity;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
@@ -55,6 +56,7 @@ public class FlowControllerV1 {
 
     private final Logger logger = LoggerFactory.getLogger(FlowControllerV1.class);
 
+    /** 内存规则存储库适配器 */
     @Autowired
     private InMemoryRuleRepositoryAdapter<FlowRuleEntity> repository;
 
@@ -133,9 +135,17 @@ public class FlowControllerV1 {
         return null;
     }
 
+    /**
+     * 添加流控规则
+     * 可以通过这个接口, 往内存中推送流控规则
+     *
+     * @param entity
+     * @return
+     */
     @PostMapping("/rule")
     @AuthAction(PrivilegeType.WRITE_RULE)
     public Result<FlowRuleEntity> apiAddFlowRule(@RequestBody FlowRuleEntity entity) {
+        // 检查实体内部是否合法
         Result<FlowRuleEntity> checkResult = checkEntityInternal(entity);
         if (checkResult != null) {
             return checkResult;
@@ -147,8 +157,17 @@ public class FlowControllerV1 {
         entity.setLimitApp(entity.getLimitApp().trim());
         entity.setResource(entity.getResource().trim());
         try {
+            /**
+             * 保存流控规则
+             *
+             * 基于内存实现保存:
+             * @see InMemoryRuleRepositoryAdapter#save(RuleEntity)
+             */
             entity = repository.save(entity);
 
+            /**
+             * 发布规则:
+             */
             publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
@@ -158,6 +177,10 @@ public class FlowControllerV1 {
         }
     }
 
+    /**
+     * 修改流控规则
+     * @return
+     */
     @PutMapping("/save.json")
     @AuthAction(PrivilegeType.WRITE_RULE)
     public Result<FlowRuleEntity> apiUpdateFlowRule(Long id, String app,
@@ -267,7 +290,12 @@ public class FlowControllerV1 {
     }
 
     private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
+        // 根据app,ip,端口封装机器对象, 根据机器对象获取对应的流控规则列表
         List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+        /**
+         * 异步设置机器的流控规则
+         * @see SentinelApiClient#setRulesAsync(String, String, int, String, List)
+         */
         return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
     }
 }

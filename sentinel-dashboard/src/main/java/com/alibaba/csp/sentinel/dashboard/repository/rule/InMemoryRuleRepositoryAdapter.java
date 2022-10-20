@@ -25,16 +25,20 @@ import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.util.AssertUtil;
 
 /**
+ * 内存规则存储库适配器
  * @author leyou
  */
 public abstract class InMemoryRuleRepositoryAdapter<T extends RuleEntity> implements RuleRepository<T, Long> {
 
     /**
+     * 机器对应的规则
      * {@code <machine, <id, rule>>}
      */
     private Map<MachineInfo, Map<Long, T>> machineRules = new ConcurrentHashMap<>(16);
+    // 所有规则
     private Map<Long, T> allRules = new ConcurrentHashMap<>(16);
 
+    // app对应的规则
     private Map<String, Map<Long, T>> appRules = new ConcurrentHashMap<>(16);
 
     private static final int MAX_RULES_SIZE = 10000;
@@ -46,6 +50,7 @@ public abstract class InMemoryRuleRepositoryAdapter<T extends RuleEntity> implem
         }
         T processedEntity = preProcess(entity);
         if (processedEntity != null) {
+            // 缓存3份:
             allRules.put(processedEntity.getId(), processedEntity);
             machineRules.computeIfAbsent(MachineInfo.of(processedEntity.getApp(), processedEntity.getIp(),
                 processedEntity.getPort()), e -> new ConcurrentHashMap<>(32))
