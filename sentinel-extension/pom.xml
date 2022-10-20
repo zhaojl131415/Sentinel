@@ -13,6 +13,8 @@
 
     <modules>
         <module>sentinel-datasource-extension</module>
+        <module>sentinel-datasource-extension-file-pull</module>
+        <module>sentinel-datasource-extension-nacos-push</module>
         <module>sentinel-datasource-nacos</module>
         <module>sentinel-datasource-zookeeper</module>
         <module>sentinel-datasource-apollo</module>
