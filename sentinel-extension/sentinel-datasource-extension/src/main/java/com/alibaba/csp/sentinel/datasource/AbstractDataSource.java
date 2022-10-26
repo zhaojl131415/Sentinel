@@ -44,6 +44,7 @@ public abstract class AbstractDataSource<S, T> implements ReadableDataSource<S, 
         /**
          * 读取数据源后加载规则配置
          * @see FileRefreshableDataSource#readSource()
+         * @see com.alibaba.csp.sentinel.datasource.nacos.NacosDataSource#readSource()
          */
         return loadConfig(readSource());
     }

@@ -9,6 +9,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.slots.system.SystemRule;
 
 /**
+ * 可写入数据源注册表，用于通过HTTP API修改规则。
  * Writable data source registry for modifying rules via HTTP API.
  *
  * @author Eric Zhao

@@ -9,26 +9,26 @@ import java.util.Set;
 /**
  * 创建规则持久化目录和文件的工具类
  *
- * @author Fox
+ * @author zhaojinliang
  */
 public class RuleFileUtils {
 
     public static void mkdirIfNotExits(String filePath) throws IOException {
         File file = new File(filePath);
-        if(!file.exists()) {
+        if (!file.exists()) {
             file.mkdirs();
         }
     }
 
-    public static void createFileIfNotExits(Map<String,String> ruleFileMap) throws IOException {
+    public static void createFileIfNotExits(Map<String, String> ruleFileMap) throws IOException {
 
         Set<String> ruleFilePathSet = ruleFileMap.keySet();
         Iterator<String> ruleFilePathIter = ruleFilePathSet.iterator();
         while (ruleFilePathIter.hasNext()) {
             String ruleFilePathKey = ruleFilePathIter.next();
-            String ruleFilePath  = PersistenceRuleConstant.rulesMap.get(ruleFilePathKey).toString();
+            String ruleFilePath = PersistenceRuleConstant.rulesMap.get(ruleFilePathKey).toString();
             File ruleFile = new File(ruleFilePath);
-            if(!ruleFile.exists()) {
+            if (!ruleFile.exists()) {
                 ruleFile.createNewFile();
             }
         }

@@ -21,8 +21,11 @@ import java.util.concurrent.TimeUnit;
 
 import com.alibaba.csp.sentinel.concurrent.NamedThreadFactory;
 import com.alibaba.csp.sentinel.log.RecordLog;
+import com.alibaba.csp.sentinel.property.DynamicSentinelProperty;
 
 /**
+ * 自动刷新数据源, 通过周期性线程池定时刷新数据源
+ *
  * A {@link ReadableDataSource} automatically fetches the backend data.
  *
  * @param <S> source data type
@@ -36,6 +39,7 @@ public abstract class AutoRefreshDataSource<S, T> extends AbstractDataSource<S, 
 
     public AutoRefreshDataSource(Converter<S, T> configParser) {
         super(configParser);
+        // 启动定时器服务
         startTimerService();
     }
 
@@ -45,6 +49,7 @@ public abstract class AutoRefreshDataSource<S, T> extends AbstractDataSource<S, 
             throw new IllegalArgumentException("recommendRefreshMs must > 0, but " + recommendRefreshMs + " get");
         }
         this.recommendRefreshMs = recommendRefreshMs;
+        // 启动定时器服务
         startTimerService();
     }
 
@@ -52,14 +57,21 @@ public abstract class AutoRefreshDataSource<S, T> extends AbstractDataSource<S, 
     private void startTimerService() {
         service = Executors.newScheduledThreadPool(1,
             new NamedThreadFactory("sentinel-datasource-auto-refresh-task", true));
+        // 周期性线程池, 每隔3秒调用线程判断数据源是否更新
         service.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 try {
+                    // 是否更新, 如果没更新, 直接返回
                     if (!isModified()) {
                         return;
                     }
+                    // 读取数据源后加载规则配置
                     T newValue = loadConfig();
+                    /**
+                     * 规则配置更新, 更新到内存中
+                     * @see DynamicSentinelProperty#updateValue(Object)
+                     */
                     getProperty().updateValue(newValue);
                 } catch (Throwable e) {
                     RecordLog.info("loadConfig exception", e);

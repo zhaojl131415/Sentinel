@@ -91,27 +91,41 @@ public class NacosDataSource<T> extends AbstractDataSource<String, T> {
         this.groupId = groupId;
         this.dataId = dataId;
         this.properties = properties;
+        /**
+         * 实例化一个nacos配置的监听器:
+         * 动态感知Nacos配置中心发布的配置, 当配置中心数据发生变化时, 会根据groupId, dataId找到对应的监听器, 回调receiveConfigInfo()方法
+         */
         this.configListener = new Listener() {
             @Override
             public Executor getExecutor() {
                 return pool;
             }
 
+            /**
+             * 接收配置信息:
+             * @param configInfo config info
+             */
             @Override
             public void receiveConfigInfo(final String configInfo) {
                 RecordLog.info("[NacosDataSource] New property value received for (properties: {}) (dataId: {}, groupId: {}): {}",
                     properties, dataId, groupId, configInfo);
+                // 获取nacos数据源中的规则配置数据
                 T newValue = NacosDataSource.this.parser.convert(configInfo);
-                // Update the new value to the property.
+                // Update the new value to the property. 更新内存中Sentinel的规则配置
                 getProperty().updateValue(newValue);
             }
         };
+        // 初始化Nacos配置监听器, 绑定groupId, dataId
         initNacosListener();
+        // 第一次加载初始化配置
         loadInitialConfig();
     }
 
     private void loadInitialConfig() {
         try {
+            /**
+             * @see AbstractDataSource#loadConfig()
+             */
             T newValue = loadConfig();
             if (newValue == null) {
                 RecordLog.warn("[NacosDataSource] WARN: initial config is null, you may have to check your data source");
@@ -124,8 +138,9 @@ public class NacosDataSource<T> extends AbstractDataSource<String, T> {
 
     private void initNacosListener() {
         try {
+            // 获取Nacos操作配置的Service: ConfigService
             this.configService = NacosFactory.createConfigService(this.properties);
-            // Add config listener.
+            // Add config listener. 添加配置监听器, 绑定groupId, dataId
             configService.addListener(dataId, groupId, configListener);
         } catch (Exception e) {
             RecordLog.warn("[NacosDataSource] Error occurred when initializing Nacos data source", e);
@@ -133,11 +148,17 @@ public class NacosDataSource<T> extends AbstractDataSource<String, T> {
         }
     }
 
+    /**
+     * 读取Nacos数据源
+     * @return
+     * @throws Exception
+     */
     @Override
     public String readSource() throws Exception {
         if (configService == null) {
             throw new IllegalStateException("Nacos config service has not been initialized or error occurred");
         }
+        // 调用Nacos的配置服务获取配置.
         return configService.getConfig(dataId, groupId, DEFAULT_TIMEOUT);
     }
 

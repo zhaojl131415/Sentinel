@@ -279,6 +279,7 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, e.getMessage());
         }
         try {
+            // 发布流控规则
             publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort()).get(5000, TimeUnit.MILLISECONDS);
             return Result.ofSuccess(id);
         } catch (Throwable t) {
@@ -289,6 +290,13 @@ public class FlowControllerV1 {
         }
     }
 
+    /**
+     * 发布流控规则
+     * @param app
+     * @param ip
+     * @param port
+     * @return
+     */
     private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
         // 根据app,ip,端口封装机器对象, 根据机器对象获取对应的流控规则列表
         List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));

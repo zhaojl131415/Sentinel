@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Sentinel 规则持久化 常量配置类
  *
- * @author Fox
+ * @author zhaojinliang
  */
 public class PersistenceRuleConstant {
 
@@ -19,7 +19,7 @@ public class PersistenceRuleConstant {
     /**
      * 各种存储sentinel规则映射map
      */
-    public static final Map rulesMap = new HashMap<String,String>();
+    public static final Map rulesMap = new HashMap<String, String>();
 
     //流控规则文件
     public static final String FLOW_RULE_PATH = "flowRulePath";
@@ -37,10 +37,10 @@ public class PersistenceRuleConstant {
     public static final String HOT_PARAM_RULE = "hotParamRulePath";
 
     static {
-        rulesMap.put(FLOW_RULE_PATH,storePath+ File.separator +"flowRule.json");
-        rulesMap.put(DEGRAGE_RULE_PATH,storePath+File.separator +"degradeRule.json");
-        rulesMap.put(SYSTEM_RULE_PATH,storePath+File.separator +"systemRule.json");
-        rulesMap.put(AUTH_RULE_PATH,storePath+File.separator +"authRule.json");
-        rulesMap.put(HOT_PARAM_RULE,storePath+File.separator +"hotParamRule.json");
+        rulesMap.put(FLOW_RULE_PATH, storePath + File.separator + "flowRule.json");
+        rulesMap.put(DEGRAGE_RULE_PATH, storePath + File.separator + "degradeRule.json");
+        rulesMap.put(SYSTEM_RULE_PATH, storePath + File.separator + "systemRule.json");
+        rulesMap.put(AUTH_RULE_PATH, storePath + File.separator + "authRule.json");
+        rulesMap.put(HOT_PARAM_RULE, storePath + File.separator + "hotParamRule.json");
     }
 }

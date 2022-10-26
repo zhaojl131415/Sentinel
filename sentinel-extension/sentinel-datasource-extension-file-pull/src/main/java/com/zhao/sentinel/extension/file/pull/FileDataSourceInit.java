@@ -39,7 +39,7 @@ import java.util.List;
 /**
  * InitFunc实现类，处理dataSource初始化逻辑
  *
- * @author Fox
+ * @author zhaojinliang
  */
 public class FileDataSourceInit implements InitFunc {
 

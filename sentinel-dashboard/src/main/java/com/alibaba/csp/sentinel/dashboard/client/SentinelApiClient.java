@@ -474,8 +474,10 @@ public class SentinelApiClient {
     }
 
     public List<FlowRuleEntity> fetchFlowRuleOfMachine(String app, String ip, int port) {
+        // 拉取流控规则
         List<FlowRule> rules = fetchRules(ip, port, FLOW_RULE_TYPE, FlowRule.class);
         if (rules != null) {
+            // 类型转换: FlowRule -> FlowRuleEntity
             return rules.stream().map(rule -> FlowRuleEntity.fromFlowRule(app, ip, port, rule))
                 .collect(Collectors.toList());
         } else {
