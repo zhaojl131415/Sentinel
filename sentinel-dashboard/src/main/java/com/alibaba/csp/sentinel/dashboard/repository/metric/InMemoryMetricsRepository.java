@@ -31,6 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 /**
+ * 在内存中缓存一段时间内的指标数据。
  * Caches metrics data in a period of time in memory.
  *
  * @author Carpenter Lee

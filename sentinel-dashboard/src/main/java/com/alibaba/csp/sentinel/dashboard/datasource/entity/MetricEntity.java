@@ -15,6 +15,9 @@
  */
 package com.alibaba.csp.sentinel.dashboard.datasource.entity;
 
+import com.alibaba.csp.sentinel.dashboard.repository.metric.influxdb.InfluxDbMetricEntity;
+import com.influxdb.query.FluxRecord;
+
 import java.util.Date;
 
 /**
@@ -62,6 +65,122 @@ public class MetricEntity {
         entity.setRt(oldEntity.getRt());
         entity.setCount(oldEntity.getCount());
         return entity;
+    }
+    /**
+     * 对象转换（FluxRecord）
+     * @param fluxRecord
+     * @return
+     */
+    public static MetricEntity copyOf(FluxRecord fluxRecord) {
+        MetricEntity entity = new MetricEntity();
+        entity.setApp(toStr(fluxRecord.getValueByKey("app")));
+        entity.setResource(toStr(fluxRecord.getValueByKey("resource")));
+        entity.setBlockQps(toLongZero(fluxRecord.getValueByKey("blockQps")));
+        entity.setCount(toInt(fluxRecord.getValueByKey("count")));
+        entity.setExceptionQps(toLongZero(fluxRecord.getValueByKey("_exceptionQps")));
+        entity.setGmtCreate(toDate(toLong(fluxRecord.getValueByKey("gmtCreate"))));
+        entity.setGmtModified(toDate(toLong(fluxRecord.getValueByKey("gmtModified"))));
+        entity.setPassQps(toLongZero(fluxRecord.getValueByKey("passQps")));
+        entity.setSuccessQps(toLongZero(fluxRecord.getValueByKey("successQps")));
+        entity.setRt(toDouble(fluxRecord.getValueByKey("rt")));
+        entity.setTimestamp(toDate(toLong(fluxRecord.getValueByKey("timestamp"))));
+        return entity;
+    }
+
+    /**
+     * 对象转换（FluxRecord）
+     * @param fluxRecord
+     * @return
+     */
+    public static MetricEntity copyOf(InfluxDbMetricEntity fluxRecord) {
+        MetricEntity entity = new MetricEntity();
+        entity.setGmtCreate(toDate(fluxRecord.getGmtCreate()));
+        entity.setGmtModified(toDate(fluxRecord.getGmtModified()));
+        entity.setApp(fluxRecord.getApp());
+        entity.setTimestamp(toDate(fluxRecord.getTimestamp()));
+        entity.setResource(fluxRecord.getResource());
+        entity.setPassQps(fluxRecord.getPassQps());
+        entity.setBlockQps(fluxRecord.getBlockQps());
+        entity.setSuccessQps(fluxRecord.getSuccessQps());
+        entity.setExceptionQps(fluxRecord.getExceptionQps());
+        entity.setRt(fluxRecord.getRt());
+        entity.setCount(fluxRecord.getCount());
+        return entity;
+    }
+
+    /**
+     * 转换为时间
+     * @param time
+     * @return
+     */
+    private static Date toDate(Long time) {
+        if(null != time) {
+            return new Date(time);
+        }
+        return new Date();
+    }
+
+
+    /**
+     * 转换为字符串
+     *
+     * @param obj
+     * @return
+     */
+    private static String toStr(Object obj) {
+        return String.valueOf(obj);
+    }
+
+    /**
+     * 转为换双精度类型
+     *
+     * @param obj
+     * @return
+     */
+    private static double toDouble(Object obj) {
+        if (null != obj) {
+            return Double.valueOf(toStr(obj));
+        }
+        return 0;
+    }
+
+
+    /**
+     * 转换为长整形， 默认为0
+     * @param obj
+     * @return
+     */
+    private static Long toLongZero(Object obj) {
+        if (null != obj) {
+            return Long.valueOf(toStr(obj));
+        }
+        return 0L;
+    }
+
+    /**
+     * 转换为长整型
+     *
+     * @param obj
+     * @return
+     */
+    private static Long toLong(Object obj) {
+        if (null != obj) {
+            return Long.valueOf(toStr(obj));
+        }
+        return null;
+    }
+
+    /**
+     * 转换为整型
+     *
+     * @param obj
+     * @return
+     */
+    private static int toInt(Object obj) {
+        if (null != obj) {
+            return Integer.valueOf(toStr(obj));
+        }
+        return 0;
     }
 
     public synchronized void addPassQps(Long passQps) {
