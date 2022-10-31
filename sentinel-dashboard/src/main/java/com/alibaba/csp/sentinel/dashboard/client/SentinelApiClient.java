@@ -270,6 +270,7 @@ public class SentinelApiClient {
 
     /**
      * Prefer to execute request using POST
+     * 通过post执行请求: http://ip:port/setRules
      * 
      * @param app
      * @param ip
@@ -395,7 +396,16 @@ public class SentinelApiClient {
     private <T extends Rule> List<T> fetchRules(String ip, int port, String type, Class<T> ruleType) {
         return fetchItems(ip, port, GET_RULES_PATH, type, ruleType);
     }
-    
+
+    /**
+     * 设置规则
+     * @param app
+     * @param ip
+     * @param port
+     * @param type
+     * @param entities
+     * @return
+     */
     private boolean setRules(String app, String ip, int port, String type, List<? extends RuleEntity> entities) {
         if (entities == null) {
             return true;
@@ -404,6 +414,17 @@ public class SentinelApiClient {
             AssertUtil.notEmpty(app, "Bad app name");
             AssertUtil.notEmpty(ip, "Bad machine IP");
             AssertUtil.isTrue(port > 0, "Bad machine port");
+            /**
+             * 由于{@link AuthorityRuleEntity} 和 {@link ParamFlowRuleEntity} 没有重写抽象类的公共方法toRule(),
+             * 没有实现抽象类的方法对RuleEntity -> Rule转换, 将RuleEntity转换成json直接保存, 导致在获取时无法将json转换成Rule故失效.
+             * 主要原因就是转换过后客户端获取规则时，无法从规则中找到resouce，导致规则校验时根据资源名称去获取规则信息无法获取到规则，进而导致规则不生效的问题.
+             * 解决方案1: 通过spring扩展点在后置处理器中给读取DataSource指定一个转换器.
+             * 解决方案2: 重写{@link AuthorityRuleEntity} 和 {@link ParamFlowRuleEntity} 实现其toRule(), 对RuleEntity -> Rule转换
+             *
+             * RuleEntity -> Rule
+             * @see DegradeRuleEntity#toRule()
+             * @see SystemRuleEntity#toRule()
+             */
             String data = JSON.toJSONString(
                     entities.stream().map(r -> r.toRule()).collect(Collectors.toList()));
             Map<String, String> params = new HashMap<>(2);
@@ -424,13 +445,25 @@ public class SentinelApiClient {
         }
     }
 
+    /**
+     * 异步设置规则
+     * @param app
+     * @param ip
+     * @param port
+     * @param type
+     * @param entities
+     * @return
+     */
     private CompletableFuture<Void> setRulesAsync(String app, String ip, int port, String type, List<? extends RuleEntity> entities) {
         try {
             AssertUtil.notNull(entities, "rules cannot be null");
             AssertUtil.notEmpty(app, "Bad app name");
             AssertUtil.notEmpty(ip, "Bad machine IP");
             AssertUtil.isTrue(port > 0, "Bad machine port");
-            // 类型转换: FlowRuleEntity -> FlowRule
+            /**
+             * 类型转换: FlowRuleEntity -> FlowRule
+             * @see FlowRuleEntity#toRule()
+             */
             String data = JSON.toJSONString(
                 entities.stream().map(r -> r.toRule()).collect(Collectors.toList()));
             Map<String, String> params = new HashMap<>(2);
@@ -553,6 +586,7 @@ public class SentinelApiClient {
     }
 
     /**
+     * 设置机器的流控规则
      * set rules of the machine. rules == null will return immediately;
      * rules.isEmpty() means setting the rules to empty.
      *
@@ -566,6 +600,14 @@ public class SentinelApiClient {
         return setRules(app, ip, port, FLOW_RULE_TYPE, rules);
     }
 
+    /**
+     * 异步设置机器的流控规则
+     * @param app
+     * @param ip
+     * @param port
+     * @param rules
+     * @return
+     */
     public CompletableFuture<Void> setFlowRuleOfMachineAsync(String app, String ip, int port, List<FlowRuleEntity> rules) {
         return setRulesAsync(app, ip, port, FLOW_RULE_TYPE, rules);
     }
@@ -602,6 +644,14 @@ public class SentinelApiClient {
         return setRules(app, ip, port, AUTHORITY_TYPE, rules);
     }
 
+    /**
+     * 设置热点参数规则
+     * @param app
+     * @param ip
+     * @param port
+     * @param rules
+     * @return
+     */
     public CompletableFuture<Void> setParamFlowRuleOfMachine(String app, String ip, int port, List<ParamFlowRuleEntity> rules) {
         if (rules == null) {
             return CompletableFuture.completedFuture(null);
@@ -610,6 +660,11 @@ public class SentinelApiClient {
             return AsyncUtils.newFailedFuture(new IllegalArgumentException("Invalid parameter"));
         }
         try {
+            /**
+             * 一个热点参数的bug
+             * 抽象类的公共方法, 并没有实现抽象类的方法对ParamFlowRuleEntity -> ParamFlowRule转换, 导致失效.
+             * @see ParamFlowRuleEntity#getRule()
+             */
             String data = JSON.toJSONString(
                 rules.stream().map(ParamFlowRuleEntity::getRule).collect(Collectors.toList())
             );
