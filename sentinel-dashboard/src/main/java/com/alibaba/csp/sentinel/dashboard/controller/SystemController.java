@@ -15,25 +15,27 @@
  */
 package com.alibaba.csp.sentinel.dashboard.controller;
 
-import java.util.Date;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
-import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
-import com.alibaba.csp.sentinel.util.StringUtil;
-
-import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
-import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
-
+import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.system.SystemRuleNacosProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.system.SystemRuleNacosPublisher;
+import com.alibaba.csp.sentinel.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Date;
+import java.util.List;
 
 /**
  * @author leyou(lihao)
@@ -48,6 +50,22 @@ public class SystemController {
     private RuleRepository<SystemRuleEntity, Long> repository;
     @Autowired
     private SentinelApiClient sentinelApiClient;
+
+    /**
+     * 从远程Nacos配置中心拉取热点参数规则
+     * @see SystemRuleNacosProvider
+     */
+    @Autowired
+    @Qualifier("systemRuleNacosProvider")
+    private DynamicRuleProvider<List<SystemRuleEntity>> systemRuleNacosProvider;
+
+    /**
+     * 将热点参数规则推送到远程Nacos配置中心
+     * @see SystemRuleNacosPublisher
+     */
+    @Autowired
+    @Qualifier("systemRuleNacosPublisher")
+    private DynamicRulePublisher<List<SystemRuleEntity>> systemRuleNacosPublisher;
 
     private <R> Result<R> checkBasicParams(String app, String ip, Integer port) {
         if (StringUtil.isEmpty(app)) {
@@ -74,7 +92,12 @@ public class SystemController {
             return checkResult;
         }
         try {
-            List<SystemRuleEntity> rules = sentinelApiClient.fetchSystemRuleOfMachine(app, ip, port);
+//            List<SystemRuleEntity> rules = sentinelApiClient.fetchSystemRuleOfMachine(app, ip, port);
+            /**
+             * 从远程Nacos配置中心获取系统规则配置
+             * @see SystemRuleNacosProvider#getRules(String)
+             */
+            List<SystemRuleEntity> rules = systemRuleNacosProvider.getRules(app);
             rules = repository.saveAll(rules);
             return Result.ofSuccess(rules);
         } catch (Throwable throwable) {
@@ -153,9 +176,10 @@ public class SystemController {
             logger.error("Add SystemRule error", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(app, ip, port)) {
-            logger.warn("Publish system rules fail after rule add");
-        }
+//        if (!publishRules(app, ip, port)) {
+//            logger.warn("Publish system rules fail after rule add");
+//        }
+        publishRules(app);
         return Result.ofSuccess(entity);
     }
 
@@ -215,9 +239,10 @@ public class SystemController {
             logger.error("save error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
-            logger.info("publish system rules fail after rule update");
-        }
+//        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+//            logger.info("publish system rules fail after rule update");
+//        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -237,14 +262,34 @@ public class SystemController {
             logger.error("delete error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
-            logger.info("publish system rules fail after rule delete");
-        }
+//        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+//            logger.info("publish system rules fail after rule delete");
+//        }
+        publishRules(oldEntity.getApp());
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<SystemRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        return sentinelApiClient.setSystemRuleOfMachine(app, ip, port, rules);
+//    private boolean publishRules(String app, String ip, Integer port) {
+//        List<SystemRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+//        return sentinelApiClient.setSystemRuleOfMachine(app, ip, port, rules);
+//    }
+
+    /**
+     * 发布系统规则
+     * @param app
+     * @return
+     */
+    private void publishRules(String app) {
+        // 根据app获取对应的系统规则列表
+        List<SystemRuleEntity> rules = repository.findAllByApp(app);
+        try {
+            /**
+             * 将系统规则推送到远程Nacos配置中心
+             * @see SystemRuleNacosPublisher#publish(String, List)
+             */
+            systemRuleNacosPublisher.publish(app, rules);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

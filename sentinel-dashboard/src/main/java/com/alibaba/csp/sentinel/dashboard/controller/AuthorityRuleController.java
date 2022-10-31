@@ -15,32 +15,26 @@
  */
 package com.alibaba.csp.sentinel.dashboard.controller;
 
-import java.util.Date;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
-import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
-import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
-import com.alibaba.csp.sentinel.slots.block.RuleConstant;
-import com.alibaba.csp.sentinel.util.StringUtil;
-
+import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.AuthorityRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
-
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.authority.AuthorityRuleNacosProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.authority.AuthorityRuleNacosPublisher;
+import com.alibaba.csp.sentinel.slots.block.RuleConstant;
+import com.alibaba.csp.sentinel.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
 
 /**
  * @author Eric Zhao
@@ -57,6 +51,22 @@ public class AuthorityRuleController {
     @Autowired
     private RuleRepository<AuthorityRuleEntity, Long> repository;
 
+    /**
+     * 从远程Nacos配置中心拉取授权规则
+     * @see AuthorityRuleNacosProvider
+     */
+    @Autowired
+    @Qualifier("authorityRuleNacosProvider")
+    private DynamicRuleProvider<List<AuthorityRuleEntity>> authorityRuleNacosProvider;
+
+    /**
+     * 将授权规则推送到远程Nacos配置中心
+     * @see AuthorityRuleNacosPublisher
+     */
+    @Autowired
+    @Qualifier("authorityRuleNacosPublisher")
+    private DynamicRulePublisher<List<AuthorityRuleEntity>> authorityRuleNacosPublisher;
+
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
     public Result<List<AuthorityRuleEntity>> apiQueryAllRulesForMachine(@RequestParam String app,
@@ -72,7 +82,14 @@ public class AuthorityRuleController {
             return Result.ofFail(-1, "Invalid parameter: port");
         }
         try {
-            List<AuthorityRuleEntity> rules = sentinelApiClient.fetchAuthorityRulesOfMachine(app, ip, port);
+//            List<AuthorityRuleEntity> rules = sentinelApiClient.fetchAuthorityRulesOfMachine(app, ip, port);
+
+            /**
+             * 从远程Nacos配置中心获取授权规则配置
+             * @see AuthorityRuleNacosProvider#getRules(String)
+             */
+            List<AuthorityRuleEntity> rules = authorityRuleNacosProvider.getRules(app);
+
             rules = repository.saveAll(rules);
             return Result.ofSuccess(rules);
         } catch (Throwable throwable) {
@@ -127,9 +144,10 @@ public class AuthorityRuleController {
             logger.error("Failed to add authority rule", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
-            logger.info("Publish authority rules failed after rule add");
-        }
+        publishRules(entity.getApp());
+//        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+//            logger.info("Publish authority rules failed after rule add");
+//        }
         return Result.ofSuccess(entity);
     }
 
@@ -157,9 +175,11 @@ public class AuthorityRuleController {
             logger.error("Failed to save authority rule", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
-            logger.info("Publish authority rules failed after rule update");
-        }
+
+        publishRules(entity.getApp());
+//        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+//            logger.info("Publish authority rules failed after rule update");
+//        }
         return Result.ofSuccess(entity);
     }
 
@@ -178,14 +198,34 @@ public class AuthorityRuleController {
         } catch (Exception e) {
             return Result.ofFail(-1, e.getMessage());
         }
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
-            logger.error("Publish authority rules failed after rule delete");
-        }
+//        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+//            logger.error("Publish authority rules failed after rule delete");
+//        }
+        publishRules(oldEntity.getApp());
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<AuthorityRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        return sentinelApiClient.setAuthorityRuleOfMachine(app, ip, port, rules);
+//    private boolean publishRules(String app, String ip, Integer port) {
+//        List<AuthorityRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+//        return sentinelApiClient.setAuthorityRuleOfMachine(app, ip, port, rules);
+//    }
+
+    /**
+     * 发布授权规则
+     * @param app
+     * @return
+     */
+    private void publishRules(String app) {
+        // 根据app获取对应的授权规则列表
+        List<AuthorityRuleEntity> rules = repository.findAllByApp(app);
+        try {
+            /**
+             * 将授权规则推送到远程Nacos配置中心
+             * @see AuthorityRuleNacosPublisher#publish(String, List)
+             */
+            authorityRuleNacosPublisher.publish(app, rules);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

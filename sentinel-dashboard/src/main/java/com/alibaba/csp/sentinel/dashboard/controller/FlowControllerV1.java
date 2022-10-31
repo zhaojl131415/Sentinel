@@ -15,34 +15,29 @@
  */
 package com.alibaba.csp.sentinel.dashboard.controller;
 
-import java.util.Date;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
-import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.RuleEntity;
-import com.alibaba.csp.sentinel.util.StringUtil;
-
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
-import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.RuleEntity;
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.InMemoryRuleRepositoryAdapter;
-
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.flow.FlowRuleNacosProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.flow.FlowRuleNacosPublisher;
+import com.alibaba.csp.sentinel.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.util.CollectionUtils;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Flow rule controller.
@@ -63,6 +58,23 @@ public class FlowControllerV1 {
     @Autowired
     private SentinelApiClient sentinelApiClient;
 
+    /**
+     * 从远程Nacos配置中心拉取流控规则
+     * @see FlowRuleNacosProvider
+     */
+    @Autowired
+    @Qualifier("flowRuleNacosProvider")
+    private DynamicRuleProvider<List<FlowRuleEntity>> flowRuleNacosProvider;
+
+    /**
+     * 将流控规则推送到远程Nacos配置中心
+     * @see FlowRuleNacosPublisher
+     */
+    @Autowired
+    @Qualifier("flowRuleNacosPublisher")
+    private DynamicRulePublisher<List<FlowRuleEntity>> flowRuleNacosPublisher;
+
+
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
     public Result<List<FlowRuleEntity>> apiQueryMachineRules(@RequestParam String app,
@@ -79,7 +91,22 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, "port can't be null");
         }
         try {
-            List<FlowRuleEntity> rules = sentinelApiClient.fetchFlowRuleOfMachine(app, ip, port);
+//            // 从客户端内存中获取规则配置
+//            List<FlowRuleEntity> rules = sentinelApiClient.fetchFlowRuleOfMachine(app, ip, port);
+
+            /**
+             * 从远程Nacos配置中心获取流控规则配置
+             * @see FlowRuleNacosProvider#getRules(String)
+             */
+            List<FlowRuleEntity> rules = flowRuleNacosProvider.getRules(app);
+            if (!CollectionUtils.isEmpty(rules)) {
+                for (FlowRuleEntity rule : rules) {
+                    rule.setApp(app);
+                    if (Objects.nonNull(rule.getClusterConfig()) && Objects.nonNull(rule.getClusterConfig().getFlowId())) {
+                        rule.setId(rule.getClusterConfig().getFlowId());
+                    }
+                }
+            }
             rules = repository.saveAll(rules);
             return Result.ofSuccess(rules);
         } catch (Throwable throwable) {
@@ -168,7 +195,9 @@ public class FlowControllerV1 {
             /**
              * 发布规则:
              */
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+//            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            // 将流控规则推送到远程Nacos配置中心
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -251,7 +280,9 @@ public class FlowControllerV1 {
                 return Result.ofFail(-1, "save entity fail: null");
             }
 
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+//            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            // 将流控规则推送到远程Nacos配置中心
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -279,8 +310,10 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, e.getMessage());
         }
         try {
-            // 发布流控规则
-            publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+//            // 发布流控规则
+//            publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            // 将流控规则推送到远程Nacos配置中心
+            publishRules(oldEntity.getApp());
             return Result.ofSuccess(id);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -290,20 +323,39 @@ public class FlowControllerV1 {
         }
     }
 
+//    /**
+//     * 发布流控规则
+//     * @param app
+//     * @param ip
+//     * @param port
+//     * @return
+//     */
+//    private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
+//        // 根据app,ip,端口封装机器对象, 根据机器对象获取对应的流控规则列表
+//        List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+//        /**
+//         * 异步设置机器的流控规则
+//         * @see SentinelApiClient#setRulesAsync(String, String, int, String, List)
+//         */
+//        return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
+//    }
+
     /**
      * 发布流控规则
      * @param app
-     * @param ip
-     * @param port
      * @return
      */
-    private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
-        // 根据app,ip,端口封装机器对象, 根据机器对象获取对应的流控规则列表
-        List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        /**
-         * 异步设置机器的流控规则
-         * @see SentinelApiClient#setRulesAsync(String, String, int, String, List)
-         */
-        return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
+    private void publishRules(String app) {
+        // 根据app获取对应的流控规则列表
+        List<FlowRuleEntity> rules = repository.findAllByApp(app);
+        try {
+            /**
+             * 将流控规则推送到远程Nacos配置中心
+             * @see FlowRuleNacosPublisher#publish(String, List)
+             */
+            flowRuleNacosPublisher.publish(app, rules);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

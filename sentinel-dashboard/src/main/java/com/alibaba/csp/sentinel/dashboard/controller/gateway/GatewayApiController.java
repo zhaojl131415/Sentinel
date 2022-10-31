@@ -26,10 +26,15 @@ import com.alibaba.csp.sentinel.dashboard.domain.vo.gateway.api.AddApiReqVo;
 import com.alibaba.csp.sentinel.dashboard.domain.vo.gateway.api.ApiPredicateItemVo;
 import com.alibaba.csp.sentinel.dashboard.domain.vo.gateway.api.UpdateApiReqVo;
 import com.alibaba.csp.sentinel.dashboard.repository.gateway.InMemApiDefinitionStore;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.gateway.GatewayApiRuleNacosProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.gateway.GatewayApiRuleNacosPublisher;
 import com.alibaba.csp.sentinel.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,6 +61,22 @@ public class GatewayApiController {
     @Autowired
     private SentinelApiClient sentinelApiClient;
 
+    /**
+     * 从远程Nacos配置中心拉取规则
+     * @see GatewayApiRuleNacosProvider
+     */
+    @Autowired
+    @Qualifier("gatewayApiRuleNacosProvider")
+    private DynamicRuleProvider<List<ApiDefinitionEntity>> gatewayApiRuleNacosProvider;
+
+    /**
+     * 将规则推送到远程Nacos配置中心
+     * @see GatewayApiRuleNacosPublisher
+     */
+    @Autowired
+    @Qualifier("gatewayApiRuleNacosPublisher")
+    private DynamicRulePublisher<List<ApiDefinitionEntity>> gatewayApiRuleNacosPublisher;
+
     @GetMapping("/list.json")
     @AuthAction(AuthService.PrivilegeType.READ_RULE)
     public Result<List<ApiDefinitionEntity>> queryApis(String app, String ip, Integer port) {
@@ -71,9 +92,14 @@ public class GatewayApiController {
         }
 
         try {
-            List<ApiDefinitionEntity> apis = sentinelApiClient.fetchApis(app, ip, port).get();
-            repository.saveAll(apis);
-            return Result.ofSuccess(apis);
+//            List<ApiDefinitionEntity> rules = sentinelApiClient.fetchApis(app, ip, port).get();
+            /**
+             * 从远程Nacos配置中心获取规则配置
+             * @see GatewayApiRuleNacosProvider#getRules(String)
+             */
+            List<ApiDefinitionEntity> rules = gatewayApiRuleNacosProvider.getRules(app);
+            repository.saveAll(rules);
+            return Result.ofSuccess(rules);
         } catch (Throwable throwable) {
             logger.error("queryApis error:", throwable);
             return Result.ofThrowable(-1, throwable);
@@ -156,9 +182,10 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(app, ip, port)) {
-            logger.warn("publish gateway apis fail after add");
-        }
+//        if (!publishApis(app, ip, port)) {
+//            logger.warn("publish gateway apis fail after add");
+//        }
+        publishRules(app);
 
         return Result.ofSuccess(entity);
     }
@@ -219,9 +246,10 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(app, entity.getIp(), entity.getPort())) {
-            logger.warn("publish gateway apis fail after update");
-        }
+//        if (!publishApis(app, entity.getIp(), entity.getPort())) {
+//            logger.warn("publish gateway apis fail after update");
+//        }
+        publishRules(app);
 
         return Result.ofSuccess(entity);
     }
@@ -246,15 +274,35 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
-            logger.warn("publish gateway apis fail after delete");
-        }
+//        if (!publishApis(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+//            logger.warn("publish gateway apis fail after delete");
+//        }
+        publishRules(oldEntity.getApp());
 
         return Result.ofSuccess(id);
     }
 
-    private boolean publishApis(String app, String ip, Integer port) {
-        List<ApiDefinitionEntity> apis = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        return sentinelApiClient.modifyApis(app, ip, port, apis);
+//    private boolean publishApis(String app, String ip, Integer port) {
+//        List<ApiDefinitionEntity> apis = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+//        return sentinelApiClient.modifyApis(app, ip, port, apis);
+//    }
+
+    /**
+     * 发布规则
+     * @param app
+     * @return
+     */
+    private void publishRules(String app) {
+        // 根据app获取对应的规则列表
+        List<ApiDefinitionEntity> rules = repository.findAllByApp(app);
+        try {
+            /**
+             * 将规则推送到远程Nacos配置中心
+             * @see GatewayApiRuleNacosPublisher#publish(String, List)
+             */
+            gatewayApiRuleNacosPublisher.publish(app, rules);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -15,32 +15,27 @@
  */
 package com.alibaba.csp.sentinel.dashboard.controller;
 
-import java.util.Date;
-import java.util.List;
-
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
-import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
-import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
+import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.DegradeRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.domain.Result;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.degrade.DegradeRuleNacosProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.nacos.degrade.DegradeRuleNacosPublisher;
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.degrade.circuitbreaker.CircuitBreakerStrategy;
 import com.alibaba.csp.sentinel.util.StringUtil;
-
-import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.DegradeRuleEntity;
-import com.alibaba.csp.sentinel.dashboard.domain.Result;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
 
 /**
  * Controller regarding APIs of degrade rules. Refactored since 1.8.0.
@@ -59,6 +54,22 @@ public class DegradeController {
     @Autowired
     private SentinelApiClient sentinelApiClient;
 
+    /**
+     * 从远程Nacos配置中心拉取熔断降级规则
+     * @see DegradeRuleNacosProvider
+     */
+    @Autowired
+    @Qualifier("degradeRuleNacosProvider")
+    private DynamicRuleProvider<List<DegradeRuleEntity>> degradeRuleNacosProvider;
+
+    /**
+     * 将熔断降级规则推送到远程Nacos配置中心
+     * @see DegradeRuleNacosPublisher
+     */
+    @Autowired
+    @Qualifier("degradeRuleNacosPublisher")
+    private DynamicRulePublisher<List<DegradeRuleEntity>> degradeRuleNacosPublisher;
+
     @GetMapping("/rules.json")
     @AuthAction(PrivilegeType.READ_RULE)
     public Result<List<DegradeRuleEntity>> apiQueryMachineRules(String app, String ip, Integer port) {
@@ -72,7 +83,14 @@ public class DegradeController {
             return Result.ofFail(-1, "port can't be null");
         }
         try {
-            List<DegradeRuleEntity> rules = sentinelApiClient.fetchDegradeRuleOfMachine(app, ip, port);
+//            List<DegradeRuleEntity> rules = sentinelApiClient.fetchDegradeRuleOfMachine(app, ip, port);
+
+            /**
+             * 从远程Nacos配置中心获取熔断降级规则配置
+             * @see DegradeRuleNacosProvider#getRules(String)
+             */
+            List<DegradeRuleEntity> rules = degradeRuleNacosProvider.getRules(app);
+
             rules = repository.saveAll(rules);
             return Result.ofSuccess(rules);
         } catch (Throwable throwable) {
@@ -97,9 +115,10 @@ public class DegradeController {
             logger.error("Failed to add new degrade rule, app={}, ip={}", entity.getApp(), entity.getIp(), t);
             return Result.ofThrowable(-1, t);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
-            logger.warn("Publish degrade rules failed, app={}", entity.getApp());
-        }
+//        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+//            logger.warn("Publish degrade rules failed, app={}", entity.getApp());
+//        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -131,9 +150,10 @@ public class DegradeController {
             logger.error("Failed to save degrade rule, id={}, rule={}", id, entity, t);
             return Result.ofThrowable(-1, t);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
-            logger.warn("Publish degrade rules failed, app={}", entity.getApp());
-        }
+//        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+//            logger.warn("Publish degrade rules failed, app={}", entity.getApp());
+//        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -155,15 +175,35 @@ public class DegradeController {
             logger.error("Failed to delete degrade rule, id={}", id, throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
-            logger.warn("Publish degrade rules failed, app={}", oldEntity.getApp());
-        }
+//        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+//            logger.warn("Publish degrade rules failed, app={}", oldEntity.getApp());
+//        }
+        publishRules(oldEntity.getApp());
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<DegradeRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        return sentinelApiClient.setDegradeRuleOfMachine(app, ip, port, rules);
+//    private boolean publishRules(String app, String ip, Integer port) {
+//        List<DegradeRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+//        return sentinelApiClient.setDegradeRuleOfMachine(app, ip, port, rules);
+//    }
+
+    /**
+     * 发布熔断降级规则
+     * @param app
+     * @return
+     */
+    private void publishRules(String app) {
+        // 根据app获取对应的熔断降级规则列表
+        List<DegradeRuleEntity> rules = repository.findAllByApp(app);
+        try {
+            /**
+             * 将熔断降级规则推送到远程Nacos配置中心
+             * @see DegradeRuleNacosPublisher#publish(String, List)
+             */
+            degradeRuleNacosPublisher.publish(app, rules);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private <R> Result<R> checkEntityInternal(DegradeRuleEntity entity) {
